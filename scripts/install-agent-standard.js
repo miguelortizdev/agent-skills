@@ -43,6 +43,16 @@ function safePath(root, relativePath) {
   return resolved;
 }
 
+function assertNoSymlinkPath(root, target) {
+  let current = target;
+  while (current !== root && current.startsWith(`${root}${path.sep}`)) {
+    if (fs.existsSync(current) && fs.lstatSync(current).isSymbolicLink()) {
+      throw new Error(`refusing to write through symlink: ${current}`);
+    }
+    current = path.dirname(current);
+  }
+}
+
 function filesIn(source, relative = '') {
   const current = path.join(source, relative);
   const stat = fs.lstatSync(current);
@@ -89,6 +99,7 @@ function buildPlan(options) {
 function execute(plan) {
   const conflicts = [];
   for (const action of plan.actions) {
+    assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
     if (fs.existsSync(action.target)) {
       if (fs.lstatSync(action.target).isSymbolicLink()) throw new Error(`refusing to write through symlink: ${action.target}`);
       if (fs.readFileSync(action.source).equals(fs.readFileSync(action.target))) continue;

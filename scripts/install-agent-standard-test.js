@@ -55,3 +55,17 @@ test('safe install refuses conflicting files', () => {
   assert.equal(conflict.status, 1);
   assert.match(conflict.stderr, /refusing to overwrite existing files/);
 });
+
+test('safe install refuses symlinked destination directories', () => {
+  const root = makeSandbox();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-skills-install-outside-'));
+  try {
+    fs.mkdirSync(path.join(root, '.cursor'), { recursive: true });
+    fs.symlinkSync(outside, path.join(root, '.cursor', 'skills'), 'dir');
+    const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /refusing to write through symlink/);
+  } finally {
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
