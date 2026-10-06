@@ -28,6 +28,9 @@
 - Profiles: `profiles/default.json` and `profiles/decameron.json`.
 - Provider-neutral MCP registry: `mcp/registry.json` and schema.
 - Thin adapters: Claude, Codex, Cursor, OpenCode, Gemini, and OpenChamber.
+- Host-native command preservation for Claude/Gemini and V2 subagent rendering
+  for OpenCode/OpenChamber.
+- Scope-specific project/global destinations with isolated installer coverage.
 - Cross-platform Node.js installer with dry-run and conflict-safe writes.
 - Registry, profile, MCP, adapter drift, and upstream path validators.
 - Upstream provenance and report-only upstream change detection.
@@ -41,9 +44,9 @@
 | Claude | Official plugin component docs, native manifest paths, adapter drift validation | VERIFIED statically |
 | Codex | Official Skills/plugin docs, root `skills/` manifest, progressive disclosure preserved | VERIFIED statically |
 | Cursor | Official Skills/Rules docs, `.cursor/skills` mapping, no long workflow pasted into rules | VERIFIED statically |
-| OpenCode | Official Skills/Commands/MCP docs, `.opencode` discovery mapping | VERIFIED statically |
-| Gemini | Official Agent Skills/custom command/MCP docs, workspace/user-scope mapping | VERIFIED statically |
-| OpenChamber | Official Skills, Commands, MCP, Repository Config docs and official source repository; mapped through OpenCode plus `.openchamber/project.json` | VERIFIED statically |
+| OpenCode | Official Skills/Commands/Agents/MCP docs, `.opencode/{skills,commands,agents}` discovery mapping, V2 `mode: subagent` output | VERIFIED statically and by filesystem smoke tests |
+| Gemini | Official Agent Skills/custom command/subagent/MCP docs, preserved native command variants, `.gemini/{skills,commands,agents}` workspace/user-scope mapping | VERIFIED statically and by filesystem smoke tests |
+| OpenChamber | Official Skills, Commands, MCP, Repository Config docs and official source repository; mapped through OpenCode V2 plus `.openchamber/project.json` | VERIFIED statically and by filesystem smoke tests |
 
 Static verification means official documentation was checked and deterministic
 adapter/installer tests pass. It does not claim that every vendor CLI is

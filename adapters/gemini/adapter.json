@@ -4,6 +4,7 @@
   "officialDocs": [
     "https://geminicli.com/docs/cli/skills/",
     "https://geminicli.com/docs/cli/custom-commands/",
+    "https://geminicli.com/docs/core/subagents/",
     "https://geminicli.com/docs/cli/tutorials/mcp-setup/"
   ],
   "nativeDiscovery": {

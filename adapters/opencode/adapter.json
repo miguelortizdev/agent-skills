@@ -4,6 +4,7 @@
   "officialDocs": [
     "https://opencode.ai/docs/skills/",
     "https://opencode.ai/docs/commands/",
+    "https://opencode.ai/docs/agents/",
     "https://opencode.ai/docs/mcp-servers/"
   ],
   "nativeDiscovery": {

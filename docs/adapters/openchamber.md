@@ -10,7 +10,7 @@ paths:
 ```text
 .opencode/skills/
 .opencode/commands/
-.opencode/agent/
+.opencode/agents/
 .opencode/references/
 ```
 
@@ -20,9 +20,10 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 ```
 
 The installer renders canonical commands as OpenCode-compatible Markdown files
-under `.opencode/commands/`, so OpenChamber can discover the same project-local
-command surface. Use **Settings → Skills**, **Settings → Commands**, and
-**Settings → MCP** to inspect or configure the resulting project behavior.
+under `.opencode/commands/` and canonical agents as OpenCode V2 subagents under
+`.opencode/agents/`. Global installs use the corresponding
+`~/.config/opencode/` paths. Use **Settings → Skills**, **Settings → Commands**,
+and **Settings → MCP** to inspect or configure the resulting project behavior.
 Repository project actions and draft starters use `.openchamber/project.json`
 when needed.
 

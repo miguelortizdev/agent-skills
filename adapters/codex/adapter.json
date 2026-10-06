@@ -3,6 +3,7 @@
   "status": "verified",
   "officialDocs": [
     "https://developers.openai.com/codex/skills",
+    "https://developers.openai.com/codex/agent-configuration/subagents",
     "https://developers.openai.com/codex/plugins"
   ],
   "nativeDiscovery": {
