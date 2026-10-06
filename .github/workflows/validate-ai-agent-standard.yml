@@ -66,3 +66,18 @@ jobs:
           node --test
           scripts/validate-adapter-drift-test.js
           scripts/install-agent-standard-test.js
+
+  routing:
+    name: Routing evaluation quality gate
+    runs-on: ubuntu-latest
+    needs: structural
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run deterministic routing evals
+        run: node scripts/run-evals.js --min-rank1 95
