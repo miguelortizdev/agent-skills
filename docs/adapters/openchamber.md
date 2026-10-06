@@ -25,7 +25,8 @@ under `.opencode/commands/` and canonical agents as OpenCode V2 subagents under
 `~/.config/opencode/` paths. Use **Settings → Skills**, **Settings → Commands**,
 and **Settings → MCP** to inspect or configure the resulting project behavior.
 Repository project actions and draft starters use `.openchamber/project.json`
-when needed.
+when needed. MCP entries are validated but not written automatically; configure
+them through **Settings → MCP**.
 
 Official documentation: [Skills](https://docs.openchamber.dev/skills/),
 [Commands](https://docs.openchamber.dev/commands-snippets/),

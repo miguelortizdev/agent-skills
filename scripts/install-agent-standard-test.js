@@ -11,6 +11,7 @@ const { afterEach, test } = require('node:test');
 
 const ROOT = path.resolve(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'install-agent-standard.js');
+const INTEGRITY_SCRIPT = path.join(ROOT, 'scripts', 'validate-installation-integrity.js');
 const sandboxes = [];
 
 function makeSandbox() {
@@ -31,6 +32,27 @@ function run(root, ...args) {
 
 function readInstalled(root, relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
+}
+
+function relativeFiles(root) {
+  if (!fs.existsSync(root)) return [];
+  return fs.readdirSync(root).flatMap((entry) => {
+    const absolute = path.join(root, entry);
+    return fs.lstatSync(absolute).isDirectory()
+      ? relativeFiles(absolute).map((child) => path.join(entry, child))
+      : [entry];
+  });
+}
+
+function assertBundleParity(sourceRoot, installedRoot) {
+  assert.deepEqual(relativeFiles(installedRoot).sort(), relativeFiles(sourceRoot).sort());
+  for (const relative of relativeFiles(sourceRoot)) {
+    assert.deepEqual(
+      fs.readFileSync(path.join(installedRoot, relative)),
+      fs.readFileSync(path.join(sourceRoot, relative)),
+      `${installedRoot}/${relative}`,
+    );
+  }
 }
 
 afterEach(() => {
@@ -115,6 +137,54 @@ test('installs Cursor native subagents without OpenCode metadata', () => {
     assert.equal(installed, canonical);
     assert.doesNotMatch(installed, /^mode: subagent$/m);
   }
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'docs', 'agents.md')), true);
+});
+
+test('allows concurrent project installations for every independent host', () => {
+  const root = makeSandbox();
+  for (const host of ['cursor', 'codex', 'claude', 'gemini']) {
+    const result = run(root, '--host', host, '--profile', 'default', '--project');
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+  }
+  for (const host of ['cursor', 'codex', 'claude', 'gemini']) {
+    assert.equal(fs.existsSync(path.join(root, '.agent-standard', 'installations', `${host}.json`)), true);
+  }
+
+  const uninstall = run(root, '--host', 'codex', '--profile', 'default', '--project', '--uninstall');
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'idea-refine', 'examples.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'skills', 'idea-refine', 'examples.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.gemini', 'skills', 'idea-refine', 'examples.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.codex', 'agents')), false);
+});
+
+test('allows concurrent global installations with an isolated HOME', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  for (const host of ['cursor', 'codex', 'claude', 'gemini']) {
+    const result = run(root, '--host', host, '--profile', 'default', '--global', { env: { HOME: home } });
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+  }
+  const uninstall = run(root, '--host', 'codex', '--profile', 'default', '--global', '--uninstall', { env: { HOME: home } });
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.equal(fs.existsSync(path.join(home, '.cursor', 'skills', 'idea-refine', 'examples.md')), true);
+  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'idea-refine', 'examples.md')), true);
+  assert.equal(fs.existsSync(path.join(home, '.gemini', 'skills', 'idea-refine', 'examples.md')), true);
+  assert.equal(fs.existsSync(path.join(home, '.codex', 'agents')), false);
+});
+
+test('installs complete Skill bundles for every host', () => {
+  const sourceRoot = path.join(ROOT, 'skills', 'idea-refine');
+  const destinations = {
+    claude: '.claude/skills', codex: '.agents/skills', cursor: '.cursor/skills',
+    gemini: '.gemini/skills', opencode: '.opencode/skills', openchamber: '.opencode/skills',
+  };
+  for (const host of Object.keys(destinations)) {
+    const root = makeSandbox();
+    const result = run(root, '--host', host, '--profile', 'default', '--project');
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+    assertBundleParity(sourceRoot, path.join(root, destinations[host], 'idea-refine'));
+  }
 });
 
 test('protects and uninstalls Cursor native commands across lifecycle', () => {
@@ -197,6 +267,60 @@ test('installs Codex custom agents using the documented TOML surface', () => {
   assert.match(content, /^developer_instructions = "/m);
   assert.match(content, /developer_instructions = .*Review Framework/);
   assert.equal(fs.existsSync(path.join(root, '.agents', 'agents')), false);
+  assert.equal(fs.existsSync(path.join(root, '.codex', 'docs', 'agents.md')), true);
+});
+
+test('keeps OpenCode and OpenChamber shared files alive until both owners uninstall', () => {
+  const root = makeSandbox();
+  for (const host of ['opencode', 'openchamber']) {
+    const result = run(root, '--host', host, '--profile', 'default', '--project');
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+  }
+  const firstUninstall = run(root, '--host', 'opencode', '--profile', 'default', '--project', '--uninstall');
+  assert.equal(firstUninstall.status, 0, firstUninstall.stdout + firstUninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.opencode', 'skills', 'idea-refine', 'examples.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.opencode', 'docs', 'agents.md')), true);
+  const secondUninstall = run(root, '--host', 'openchamber', '--profile', 'default', '--project', '--uninstall');
+  assert.equal(secondUninstall.status, 0, secondUninstall.stdout + secondUninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.opencode')), false);
+});
+
+test('resolves Decameron command dependencies during installation', () => {
+  const root = makeSandbox();
+  const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  for (const skill of ['spec-driven-development', 'planning-and-task-breakdown', 'incremental-implementation', 'test-driven-development', 'code-review-and-quality', 'security-and-hardening', 'performance-optimization', 'shipping-and-launch']) {
+    assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', skill, 'SKILL.md')), true, skill);
+  }
+  for (const agent of ['code-reviewer', 'security-auditor', 'test-engineer']) {
+    assert.equal(fs.existsSync(path.join(root, '.cursor', 'agents', `${agent}.md`)), true, agent);
+  }
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'references', 'orchestration-patterns.md')), true);
+});
+
+test('runtime integrity is clean for default and Decameron profiles on every host', () => {
+  for (const profile of ['default', 'decameron']) {
+    for (const host of ['claude', 'codex', 'cursor', 'opencode', 'gemini', 'openchamber']) {
+      const root = makeSandbox();
+      const install = run(root, '--host', host, '--profile', profile, '--project');
+      assert.equal(install.status, 0, `${host}/${profile}: ${install.stdout}${install.stderr}`);
+      const integrity = spawnSync(process.execPath, [INTEGRITY_SCRIPT, '--root', root, '--host', host, '--profile', profile], {
+        cwd: ROOT,
+        encoding: 'utf8',
+      });
+      assert.equal(integrity.status, 0, `${host}/${profile}: ${integrity.stdout}${integrity.stderr}`);
+
+      const globalRoot = makeSandbox();
+      const home = makeSandbox();
+      const globalInstall = run(globalRoot, '--host', host, '--profile', profile, '--global', { env: { HOME: home } });
+      assert.equal(globalInstall.status, 0, `${host}/${profile} global: ${globalInstall.stdout}${globalInstall.stderr}`);
+      const globalIntegrity = spawnSync(process.execPath, [INTEGRITY_SCRIPT, '--root', home, '--host', host, '--profile', profile, '--scope', 'global'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+      });
+      assert.equal(globalIntegrity.status, 0, `${host}/${profile} global: ${globalIntegrity.stdout}${globalIntegrity.stderr}`);
+    }
+  }
 });
 
 test('uses isolated project and global destinations without touching the real home', () => {
@@ -242,7 +366,7 @@ test('default profile installs all selected assets or documented fallbacks per h
     const root = makeSandbox();
     const result = run(root, '--host', host, '--profile', 'default', '--project');
     assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
-    const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installation.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', `${host}.json`), 'utf8'));
     assert.ok(manifest.files.length >= profile.skills.length);
   }
 });
@@ -320,7 +444,7 @@ test('records ownership and uninstalls only the selected profile', () => {
   const root = makeSandbox();
   const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(install.status, 0, install.stdout + install.stderr);
-  const manifestPath = path.join(root, '.agent-standard', 'installation.json');
+  const manifestPath = path.join(root, '.agent-standard', 'installations', 'cursor.json');
   assert.equal(fs.existsSync(manifestPath), true);
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   assert.equal(manifest.profile, 'decameron');

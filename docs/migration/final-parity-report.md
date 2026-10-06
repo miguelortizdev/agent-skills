@@ -44,9 +44,9 @@
 | Claude | Official plugin component docs, native manifest paths, adapter drift validation | VERIFIED statically |
 | Codex | Official Skills/plugin/subagent docs, `.agents/skills`, transformed `.codex/agents/*.toml`, progressive disclosure preserved | VERIFIED statically and by filesystem smoke tests |
 | Cursor | Official Skills/Commands/Subagents/Rules docs, `.cursor/{skills,commands,agents}` mapping, project Commands and project/user Agents | VERIFIED statically and by filesystem smoke tests |
-| OpenCode | Official Skills/Commands/Agents/MCP docs, `.opencode/{skills,commands,agents}` discovery mapping, V2 `mode: subagent` output | VERIFIED statically and by filesystem smoke tests |
-| Gemini | Official Agent Skills/custom command/subagent/MCP docs, preserved native command variants, `.gemini/{skills,commands,agents}` workspace/user-scope mapping | VERIFIED statically and by filesystem smoke tests |
-| OpenChamber | Official Skills, Commands, MCP, Repository Config docs and official source repository; mapped through OpenCode V2 plus `.openchamber/project.json` | VERIFIED statically and by filesystem smoke tests |
+| OpenCode | Official Skills/Commands/Agents/MCP docs, `.opencode/{skills,commands,agents,references}` discovery mapping, V2 `mode: subagent` output | Skills/Commands/Agents/References verified by filesystem tests; MCP documented fallback |
+| Gemini | Official Agent Skills/custom command/subagent/MCP docs, preserved native command variants, `.gemini/{skills,commands,agents,references}` workspace/user-scope mapping | Skills/Commands/Agents/References verified by filesystem tests; MCP documented fallback |
+| OpenChamber | Official Skills, Commands, MCP, Repository Config docs and official source repository; mapped through OpenCode V2 plus `.openchamber/project.json` | Skills/Commands/Agents/References verified by filesystem tests; MCP documented fallback |
 
 Static verification means official documentation was checked and deterministic
 adapter/installer tests pass. It does not claim that every vendor CLI is
@@ -66,21 +66,26 @@ executed.
 - `node scripts/validate-adapter-drift.js`: 6 hosts passed.
 - `node scripts/validate-upstream-parity.js`: 210 baseline paths present.
 - `node scripts/run-evals.js --min-rank1 95`: 141 checks passed, rank-1 `100%` (`89/89`).
-- Full Node test suite: 152 tests passed, 0 failed.
+- Full Node test suite: 161 tests passed, 0 failed.
 - Native representation, subagent, scope, and adapter-drift tests: all passed.
+- Runtime integrity: default and decameron profiles passed for all 6 hosts,
+  including complete Skill bundles, local links, shared References, and Agent
+  support-document dependencies.
 - `git diff --check`: passed.
 
-## Functional Loss
+## Parity Status
 
 ```text
-Functional loss: NONE
+Canonical source parity: VERIFIED
+Installed runtime parity: VERIFIED for Skills, Commands, Agents, and References
+MCP installer translation: DOCUMENTED FALLBACK
 ```
 
-All upstream capabilities remain available from their canonical paths. Hosts
-that do not natively expose a particular upstream surface retain the canonical
-asset and use an adapter mapping or documented fallback; no Skill, Command,
-Agent, Reference, Hook, Eval, script, manifest, or license capability was
-deleted.
+All upstream Skills, Commands, Agents, References, Hooks, Evals, scripts,
+manifests, and license capabilities remain available from their canonical paths.
+The provider-neutral MCP registry is validated and preserved, but selected MCP
+servers are intentionally configured through each host's native surface rather
+than being written by this installer.
 
 ## Remaining Operational Follow-Up
 

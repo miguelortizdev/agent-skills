@@ -11,7 +11,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "type", "path", "source", "enabled"],
+          "required": ["id", "type", "path", "source", "enabled"],
         "additionalProperties": false,
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
@@ -19,6 +19,7 @@
           "path": {"type": "string", "pattern": "^[^/].*[^/]$"},
           "source": {"enum": ["upstream", "custom"]},
           "enabled": {"type": "boolean"}
+          ,"requires": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true}
         }
       }
     }

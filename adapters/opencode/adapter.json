@@ -20,7 +20,7 @@
     "references": "bundle-with-selected-skill-or-repository",
     "evals": "repository-validation",
     "hooks": "documented-fallback",
-    "mcp": "adapter-translation"
+    "mcp": "documented-fallback"
   },
   "nativeCapabilities": ["skills", "commands", "agents", "references"],
   "installDestinations": {
@@ -46,5 +46,6 @@
     "format": "markdown",
     "addMode": "subagent"
   },
+  "mcpStrategy": "documented-fallback",
   "progressiveDisclosure": "Skills are loaded on demand by the native skill tool."
 }

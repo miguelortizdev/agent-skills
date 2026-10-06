@@ -156,14 +156,32 @@ function installDestinations(adapter, scope) {
   return destinations[scope] || destinations;
 }
 
-function manifestPath(installRoot) {
-  return safePath(installRoot, path.join('.agent-standard', 'installation.json'));
+function manifestPath(installRoot, hostId) {
+  return safePath(installRoot, path.join('.agent-standard', 'installations', `${hostId}.json`));
 }
 
 function readManifest(file) {
   if (!fs.existsSync(file)) return null;
   if (fs.lstatSync(file).isSymbolicLink()) throw new Error(`refusing to read symlinked manifest: ${file}`);
   return readJson(file);
+}
+
+function readInstallationManifests(installRoot) {
+  const directory = safePath(installRoot, path.join('.agent-standard', 'installations'));
+  if (!fs.existsSync(directory)) return [];
+  if (fs.lstatSync(directory).isSymbolicLink()) throw new Error(`refusing to read symlinked installations directory: ${directory}`);
+  return fs.readdirSync(directory).filter((file) => file.endsWith('.json')).map((file) => ({
+    file: path.join(directory, file),
+    manifest: readManifest(path.join(directory, file)),
+  }));
+}
+
+function writeManifest(file, manifest) {
+  assertNoSymlinkPath(path.dirname(file), path.dirname(file));
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.tmp-${process.pid}`;
+  fs.writeFileSync(temporary, `${JSON.stringify(manifest, null, 2)}\n`);
+  fs.renameSync(temporary, file);
 }
 
 function buildPlan(options) {
@@ -177,7 +195,7 @@ function buildPlan(options) {
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
   const scope = options.global ? 'global' : 'project';
   const installRoot = options.global ? os.homedir() : process.cwd();
-  const installationManifest = manifestPath(installRoot);
+  const installationManifest = manifestPath(installRoot, host.id);
   const existingManifest = readManifest(installationManifest);
   if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== scope)) {
     throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
@@ -185,9 +203,23 @@ function buildPlan(options) {
   const actions = [];
   const skipped = [];
 
+  const selectedProfile = { ...profile };
+  const resolved = new Set();
+  function requireAsset(id) {
+    if (resolved.has(id)) return;
+    resolved.add(id);
+    const asset = assets.get(id);
+    if (!asset) throw new Error(`${profile.name} dependency references missing asset: ${id}`);
+    for (const dependency of asset.requires || []) requireAsset(dependency);
+    const field = TYPE_FIELDS[asset.type];
+    if (field && !selectedProfile[field].includes(id)) selectedProfile[field].push(id);
+  }
+  for (const field of Object.values(TYPE_FIELDS)) selectedProfile[field] = [...(profile[field] || [])];
+  for (const field of Object.values(TYPE_FIELDS)) for (const id of selectedProfile[field]) requireAsset(id);
+
   for (const [type, field] of Object.entries(TYPE_FIELDS)) {
     const destination = installDestinations(adapter, scope)[field];
-    for (const id of profile[field] || []) {
+    for (const id of selectedProfile[field] || []) {
       const asset = assets.get(id);
       if (!asset || asset.type !== type) throw new Error(`${profile.name}.${field} references an invalid ${type}: ${id}`);
       if (!destination) {
@@ -202,17 +234,30 @@ function buildPlan(options) {
       }
       if (type === 'agent' && adapter.agentRepresentation) {
         actions.push(agentAction(source, id, targetBase, adapter.agentRepresentation));
+        actions.push({
+          source: path.join(ROOT, 'docs', 'agents.md'),
+          target: safePath(path.dirname(targetBase), path.join('docs', 'agents.md')),
+        });
         continue;
       }
-      const sourceIsDirectory = fs.lstatSync(source).isDirectory();
-      for (const entry of filesIn(source)) {
+      const bundleRoot = type === 'skill' ? path.dirname(source) : source;
+      const sourceIsDirectory = fs.lstatSync(bundleRoot).isDirectory();
+      for (const entry of filesIn(bundleRoot)) {
         const targetRelative = type === 'skill' || sourceIsDirectory ? path.join(id, entry.relative) : entry.relative;
         const target = safePath(targetBase, targetRelative);
         actions.push({ source: entry.source, target });
       }
+      if (type === 'agent') {
+        actions.push({
+          source: path.join(ROOT, 'docs', 'agents.md'),
+          target: safePath(path.dirname(targetBase), path.join('docs', 'agents.md')),
+        });
+      }
     }
   }
-  return { options, host, profile, installRoot, actions, skipped, installationManifest, existingManifest };
+  if ((profile.mcp || []).length) skipped.push(`mcp: no safe native translation configured for ${host.id}; configure through the host UI or config`);
+  const uniqueActions = [...new Map(actions.map((action) => [action.target, action])).values()];
+  return { options, host, profile: selectedProfile, installRoot, actions: uniqueActions, skipped, installationManifest, existingManifest };
 }
 
 function executeInstall(plan) {
@@ -244,10 +289,7 @@ function executeInstall(plan) {
     });
   }
   assertNoSymlinkPath(plan.installRoot, path.dirname(plan.installationManifest));
-  fs.mkdirSync(path.dirname(plan.installationManifest), { recursive: true });
-  const temporary = `${plan.installationManifest}.tmp-${process.pid}`;
-  fs.writeFileSync(temporary, `${JSON.stringify({ version: 1, host: plan.host.id, profile: plan.profile.name, scope: plan.options.global ? 'global' : 'project', files }, null, 2)}\n`);
-  fs.renameSync(temporary, plan.installationManifest);
+  writeManifest(plan.installationManifest, { version: 1, host: plan.host.id, profile: plan.profile.name, scope: plan.options.global ? 'global' : 'project', files });
 }
 
 function removeEmptyParents(start, stop) {
@@ -262,6 +304,13 @@ function removeEmptyParents(start, stop) {
 function executeUninstall(plan) {
   const modified = [];
   const removable = [];
+  const otherManifests = readInstallationManifests(plan.installRoot)
+    .filter((entry) => entry.file !== plan.installationManifest);
+  const otherOwners = new Map();
+  for (const entry of otherManifests) for (const file of entry.manifest.files || []) {
+    if (!otherOwners.has(file.path)) otherOwners.set(file.path, []);
+    otherOwners.get(file.path).push(entry);
+  }
   for (const entry of plan.existingManifest.files || []) {
     const target = safePath(plan.installRoot, entry.path);
     assertNoSymlinkPath(plan.installRoot, path.dirname(target));
@@ -270,7 +319,15 @@ function executeUninstall(plan) {
       modified.push(target);
       continue;
     }
-    removable.push(target);
+    const owners = otherOwners.get(entry.path) || [];
+    if (owners.length) {
+      const successor = owners.find((owner) => (owner.manifest.files || []).some((file) => file.path === entry.path));
+      const successorFile = successor.manifest.files.find((file) => file.path === entry.path);
+      successorFile.created = true;
+      writeManifest(successor.file, successor.manifest);
+    } else {
+      removable.push(target);
+    }
   }
   if (modified.length) throw new Error(`refusing to uninstall modified files:\n${modified.join('\n')}`);
   for (const target of removable) {
@@ -283,7 +340,7 @@ function executeUninstall(plan) {
 
 function uninstallPlan(options) {
   const installRoot = options.global ? os.homedir() : process.cwd();
-  const installationManifest = manifestPath(installRoot);
+  const installationManifest = manifestPath(installRoot, options.host);
   const existingManifest = readManifest(installationManifest);
   if (!existingManifest) throw new Error('no installation manifest found; cannot safely uninstall untracked files');
   if (existingManifest.host !== options.host || existingManifest.profile !== options.profile || existingManifest.scope !== (options.global ? 'global' : 'project')) {
@@ -306,7 +363,7 @@ function main() {
     for (const entry of plan.existingManifest.files || []) console.log(`${plan.options.dryRun ? '  would remove' : '  remove'} ${entry.path}`);
   } else {
     for (const action of plan.actions) console.log(`${plan.options.dryRun ? '  would copy' : '  copy'} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
-    console.log(`${plan.options.dryRun ? '  would write' : '  write'} .agent-standard/installation.json`);
+    console.log(`${plan.options.dryRun ? '  would write' : '  write'} ${path.relative(plan.installRoot, plan.installationManifest)}`);
   }
   for (const skipped of plan.skipped) console.log(`  skip ${skipped}`);
   if (!plan.options.dryRun) execute(plan);

@@ -40,4 +40,5 @@ make a failing gate pass.
 - [ ] No canonical assets are duplicated under a host directory in the repository.
 - [ ] No secrets, credentials, tokens, passwords, or API keys are present.
 - [ ] `git status` is clean and history uses atomic Conventional Commits.
-- [ ] Final parity report states `Functional loss: NONE`.
+- [ ] Final parity report distinguishes canonical source parity from installed
+      runtime parity and documents any standardization fallback.

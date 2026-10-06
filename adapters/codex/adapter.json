@@ -19,23 +19,24 @@
     "references": "bundled-with-skill-or-repository",
     "evals": "repository-validation",
     "hooks": "documented-fallback",
-    "mcp": "adapter-translation"
+    "mcp": "documented-fallback"
   },
   "nativeCapabilities": ["skills", "agents"],
   "installDestinations": {
     "project": {
       "skills": ".agents/skills",
       "agents": ".codex/agents",
-      "references": "references"
+      "references": ".agents/references"
     },
     "global": {
       "skills": ".agents/skills",
       "agents": ".codex/agents",
-      "references": "references"
+      "references": ".agents/references"
     }
   },
   "agentRepresentation": {
     "format": "toml"
   },
+  "mcpStrategy": "documented-fallback",
   "progressiveDisclosure": "Do not preload using-agent-skills when Codex native routing is available."
 }

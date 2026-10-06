@@ -20,7 +20,9 @@ Codex does not need the full `using-agent-skills` meta-router preloaded when
 native routing is available. The installer installs project and global Skills
 under `.agents/skills/` and `~/.agents/skills/`, and transforms canonical agent
 Markdown into Codex custom-agent TOML under `.codex/agents/` and
-`~/.codex/agents/`. Lifecycle commands are represented by their underlying
-Skills when no native slash-command equivalent exists.
+`~/.codex/agents/`, with shared references under `.agents/references/` and
+`~/.agents/references/`. Lifecycle commands are represented by their underlying
+Skills when no native slash-command equivalent exists. MCP entries are validated
+but configured through Codex's native `config.toml` surfaces.
 
 Official documentation: [Codex Skills](https://developers.openai.com/codex/skills).

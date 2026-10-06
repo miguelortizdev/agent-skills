@@ -20,7 +20,7 @@
     "references": "bundled-with-selected-skill-or-repository",
     "evals": "repository-validation",
     "hooks": "native-or-documented-fallback",
-    "mcp": "adapter-translation"
+    "mcp": "documented-fallback"
   },
   "nativeCapabilities": ["skills", "commands", "agents", "references"],
   "installDestinations": {
@@ -43,5 +43,6 @@
     "filenameMap": {"plan": "planning"},
     "nativeSourceDirectory": ".gemini/commands"
   },
+  "mcpStrategy": "documented-fallback",
   "progressiveDisclosure": "Keep Skills on demand; use GEMINI.md only for persistent project context."
 }

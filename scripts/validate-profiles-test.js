@@ -17,10 +17,12 @@ function makeSandbox() {
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'registry'), { recursive: true });
   fs.mkdirSync(path.join(root, 'profiles'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'mcp'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'scripts', 'validate-profiles.js'), path.join(root, 'scripts', 'validate-profiles.js'));
   fs.copyFileSync(path.join(ROOT, 'registry', 'catalog.json'), path.join(root, 'registry', 'catalog.json'));
   fs.copyFileSync(path.join(ROOT, 'profiles', 'default.json'), path.join(root, 'profiles', 'default.json'));
   fs.copyFileSync(path.join(ROOT, 'profiles', 'decameron.json'), path.join(root, 'profiles', 'decameron.json'));
+  fs.copyFileSync(path.join(ROOT, 'mcp', 'registry.json'), path.join(root, 'mcp', 'registry.json'));
   sandboxes.push(root);
   return root;
 }
@@ -65,4 +67,41 @@ test('rejects references with the wrong asset type', () => {
   const result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /expected skill/);
+});
+
+test('resolves profile MCP entries from the MCP registry', () => {
+  const root = makeSandbox();
+  const { file, data } = readProfile(root);
+  data.mcp = ['kubernetes'];
+  fs.writeFileSync(file, JSON.stringify(data));
+  const result = run(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test('rejects profiles with missing MCP entries', () => {
+  const root = makeSandbox();
+  const { file, data } = readProfile(root);
+  data.mcp = ['missing-server'];
+  fs.writeFileSync(file, JSON.stringify(data));
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /missing MCP server/);
+});
+
+test('resolves command dependencies and rejects dependency cycles', () => {
+  const root = makeSandbox();
+  const { file, data } = readProfile(root);
+  data.commands = ['build'];
+  fs.writeFileSync(file, JSON.stringify(data));
+  const result = run(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+
+  const catalogFile = path.join(root, 'registry', 'catalog.json');
+  const catalog = JSON.parse(fs.readFileSync(catalogFile, 'utf8'));
+  const build = catalog.assets.find((asset) => asset.id === 'build');
+  build.requires = ['build'];
+  fs.writeFileSync(catalogFile, JSON.stringify(catalog));
+  const cycle = run(root);
+  assert.equal(cycle.status, 1);
+  assert.match(cycle.stderr, /dependency cycle/);
 });

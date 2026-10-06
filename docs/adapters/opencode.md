@@ -19,8 +19,9 @@ Skills are loaded on demand through OpenCode's native `skill` tool. The
 installer renders canonical TOML command definitions as Markdown files under
 `.opencode/commands/`, and renders canonical agents under `.opencode/agents/`
 with `mode: subagent`. Global installs use `~/.config/opencode/{skills,commands,agents}`.
-If a command is unsupported, invoke its underlying Skill directly. MCP
-configuration is translated to OpenCode's native config.
+If a command is unsupported, invoke its underlying Skill directly. MCP entries
+are validated against the provider-neutral registry but are not written by the
+installer; configure them in OpenCode's native config.
 
 Official documentation: [OpenCode Agent Skills](https://opencode.ai/docs/skills/),
 [Commands](https://opencode.ai/docs/commands/), and

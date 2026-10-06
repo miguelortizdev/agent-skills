@@ -24,8 +24,9 @@ desired. Use the installer when a project needs a selected profile and explicit
 ownership tracking. The installer renders canonical TOML command definitions as
 Claude-native Markdown files under `.claude/commands/`, preserving the tracked
 upstream Claude command variants. Global installs use the corresponding
-`~/.claude/{skills,agents,commands}` paths; the installer does not copy TOML
-files into Claude's command directory.
+`~/.claude/{skills,agents,commands,references}` paths; the installer does not
+copy TOML files into Claude's command directory. MCP entries are validated but
+must be configured through Claude's native `.mcp.json` or settings surfaces.
 
 Official documentation: [Claude Code plugins](https://code.claude.com/docs/en/plugins)
 and [plugin components](https://code.claude.com/docs/en/plugins/components).

@@ -73,7 +73,8 @@ An adapter contains only host-specific differences:
 - discovery paths and file naming;
 - supported command or agent representation;
 - native plugin metadata;
-- MCP configuration translation;
+- MCP configuration translation when implemented, otherwise an explicit
+  documented fallback;
 - installation scope and conflict rules;
 - documented fallback when a host lacks a capability.
 

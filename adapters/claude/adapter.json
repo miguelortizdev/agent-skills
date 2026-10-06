@@ -19,21 +19,21 @@
     "references": "packaged-with-canonical-assets",
     "evals": "native-plugin-evals",
     "hooks": "native-plugin-or-documented-fallback",
-    "mcp": "adapter-translation"
+    "mcp": "documented-fallback"
   },
-  "nativeCapabilities": ["skills", "commands", "agents", "references", "evals", "hooks", "mcp"],
+  "nativeCapabilities": ["skills", "commands", "agents", "references", "evals", "hooks"],
   "installDestinations": {
     "project": {
       "skills": ".claude/skills",
       "agents": ".claude/agents",
       "commands": ".claude/commands",
-      "references": "references"
+      "references": ".claude/references"
     },
     "global": {
       "skills": ".claude/skills",
       "agents": ".claude/agents",
       "commands": ".claude/commands",
-      "references": "references"
+      "references": ".claude/references"
     }
   },
   "commandRepresentation": {
@@ -42,6 +42,7 @@
     "filenameMap": {"plan": "plan"},
     "nativeSourceDirectory": ".claude/commands"
   },
+  "mcpStrategy": "documented-fallback",
   "fallbacks": {
     "unsupported": "Keep the canonical asset and invoke it through its underlying Skill or documented manual configuration."
   }

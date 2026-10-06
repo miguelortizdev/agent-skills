@@ -42,8 +42,8 @@ conflicting files, follows no symlinks, and writes an ownership manifest at:
 
 ## Change Profile
 
-Do not install a second profile over an existing installation. Remove the
-current profile first:
+Do not install a second profile for the same host and scope over an existing
+installation. Remove the current host profile first:
 
 ```bash
 node /path/to/agent-skills/scripts/install-agent-standard.js \
@@ -53,11 +53,28 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
   --uninstall
 ```
 
-Then install the replacement profile. Uninstallation removes only files created
-by the manifest and refuses to delete files whose hashes changed.
+Then install the replacement profile. Each host has an isolated manifest under
+`.agent-standard/installations/<host>.json`, so different hosts can coexist.
+Uninstallation removes only files created by the requested host and refuses to
+delete files whose hashes changed. Shared identical files transfer ownership to
+the remaining installation.
 
-Use `--dry-run --uninstall` to preview removal. Installations without a
+Use `--dry-run --uninstall` to preview removal. Installations without a host
 manifest cannot be safely removed automatically.
+
+The installer copies complete Skill directories, not only `SKILL.md`, and keeps
+shared References inside the host namespace so relative links remain valid.
+Run the runtime check for an installed profile with:
+
+```bash
+node scripts/validate-installation-integrity.js \
+  --root "$PWD" --host cursor --profile decameron
+```
+
+MCP profiles are validated against `mcp/registry.json`, but the installer does
+not write host configuration files. Selected MCP entries are reported as a
+documented fallback and must be configured through the host's native UI or
+configuration file.
 
 ## Profiles
 

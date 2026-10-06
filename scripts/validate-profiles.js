@@ -8,6 +8,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const PROFILE_DIR = path.join(ROOT, 'profiles');
 const CATALOG_PATH = path.join(ROOT, 'registry', 'catalog.json');
+const MCP_PATH = path.join(ROOT, 'mcp', 'registry.json');
 const TYPES_BY_FIELD = {
   skills: 'skill',
   commands: 'command',
@@ -28,6 +29,8 @@ function readJson(file) {
 function main() {
   const catalog = readJson(CATALOG_PATH);
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
+  const mcpRegistry = readJson(MCP_PATH);
+  const mcpIds = new Set((mcpRegistry.servers || []).map((server) => server.id));
   const files = fs.readdirSync(PROFILE_DIR).filter((file) => file.endsWith('.json') && file !== 'schema.json').sort();
   if (files.length === 0) throw new Error('no profile files found');
   const names = new Set();
@@ -41,10 +44,30 @@ function main() {
     for (const [field, expectedType] of Object.entries(TYPES_BY_FIELD)) {
       if (!Array.isArray(profile[field])) throw new Error(`${profile.name}.${field} must be an array`);
       for (const id of profile[field]) {
+        if (field === 'mcp') {
+          if (!mcpIds.has(id)) throw new Error(`${profile.name}.mcp references missing MCP server: ${id}`);
+          continue;
+        }
         const asset = assets.get(id);
         if (!asset) throw new Error(`${profile.name}.${field} references missing asset: ${id}`);
         if (asset.type !== expectedType) throw new Error(`${profile.name}.${field} references ${id} of type ${asset.type}, expected ${expectedType}`);
       }
+    }
+
+    const visiting = new Set();
+    const visited = new Set();
+    function resolve(id, chain = []) {
+      if (visited.has(id)) return;
+      if (visiting.has(id)) throw new Error(`${profile.name} dependency cycle: ${[...chain, id].join(' -> ')}`);
+      const asset = assets.get(id);
+      if (!asset) throw new Error(`${profile.name} dependency references missing asset: ${id}`);
+      visiting.add(id);
+      for (const dependency of asset.requires || []) resolve(dependency, [...chain, id]);
+      visiting.delete(id);
+      visited.add(id);
+    }
+    for (const field of Object.keys(TYPES_BY_FIELD).filter((field) => field !== 'mcp')) {
+      for (const id of profile[field]) resolve(id);
     }
   }
 

@@ -23,7 +23,7 @@
     "references": "bundle-with-selected-skill-or-repository",
     "evals": "repository-validation",
     "hooks": "underlying-opencode-or-documentation-fallback",
-    "mcp": "local-server-or-remote-server-translation"
+    "mcp": "documented-fallback"
   },
   "nativeCapabilities": ["skills", "commands", "agents", "references"],
   "installDestinations": {
@@ -49,6 +49,7 @@
     "format": "markdown",
     "addMode": "subagent"
   },
+  "mcpStrategy": "documented-fallback",
   "notes": [
     "OpenChamber is a workspace around OpenCode; do not invent a second canonical asset tree.",
     "Repository project actions and draft starters may be recorded in .openchamber/project.json.",
