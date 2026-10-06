@@ -1,0 +1,33 @@
+{
+  "host": "openchamber",
+  "status": "verified",
+  "officialDocs": [
+    "https://docs.openchamber.dev/skills/",
+    "https://docs.openchamber.dev/commands-snippets/",
+    "https://docs.openchamber.dev/mcp/",
+    "https://docs.openchamber.dev/repository-config/",
+    "https://github.com/openchamber/openchamber"
+  ],
+  "sourceRepository": "https://github.com/openchamber/openchamber",
+  "nativeDiscovery": {
+    "skills": ["OpenChamber Settings > Skills", ".opencode/skills"],
+    "agents": ".opencode/agent",
+    "commands": ["OpenChamber Settings > Commands", ".opencode/commands"],
+    "mcp": "OpenChamber Settings > MCP",
+    "repositoryConfig": ".openchamber/project.json"
+  },
+  "mapping": {
+    "skills": "project-scope-or-opencode-discovery",
+    "agents": "underlying-opencode-agent-fallback",
+    "commands": "project-scope-command-or-opencode-wrapper",
+    "references": "bundle-with-selected-skill-or-repository",
+    "evals": "repository-validation",
+    "hooks": "underlying-opencode-or-documentation-fallback",
+    "mcp": "local-server-or-remote-server-translation"
+  },
+  "notes": [
+    "OpenChamber is a workspace around OpenCode; do not invent a second canonical asset tree.",
+    "Repository project actions and draft starters may be recorded in .openchamber/project.json.",
+    "Personal and project scope are distinct; installer must make scope explicit."
+  ]
+}

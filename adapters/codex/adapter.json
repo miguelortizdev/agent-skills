@@ -1,0 +1,24 @@
+{
+  "host": "codex",
+  "status": "verified",
+  "officialDocs": [
+    "https://developers.openai.com/codex/skills",
+    "https://developers.openai.com/codex/plugins"
+  ],
+  "nativeDiscovery": {
+    "skills": "skills",
+    "agents": ".agents/skills",
+    "commands": "underlying-skill-invocation",
+    "mcp": "plugin-or-host-configuration"
+  },
+  "mapping": {
+    "skills": "native-plugin-root-path",
+    "agents": "documented-persona-fallback",
+    "commands": "underlying-skill-invocation",
+    "references": "bundled-with-skill-or-repository",
+    "evals": "repository-validation",
+    "hooks": "documented-fallback",
+    "mcp": "adapter-translation"
+  },
+  "progressiveDisclosure": "Do not preload using-agent-skills when Codex native routing is available."
+}

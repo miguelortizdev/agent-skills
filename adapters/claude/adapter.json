@@ -1,0 +1,27 @@
+{
+  "host": "claude",
+  "status": "verified",
+  "officialDocs": [
+    "https://code.claude.com/docs/en/plugins",
+    "https://code.claude.com/docs/en/plugins/components"
+  ],
+  "nativeDiscovery": {
+    "skills": "skills",
+    "agents": "agents",
+    "commands": ["commands", ".claude/commands"],
+    "hooks": "hooks",
+    "mcp": ".mcp.json"
+  },
+  "mapping": {
+    "skills": "native-plugin",
+    "agents": "native-plugin",
+    "commands": "native-plugin",
+    "references": "packaged-with-canonical-assets",
+    "evals": "native-plugin-evals",
+    "hooks": "native-plugin-or-documented-fallback",
+    "mcp": "adapter-translation"
+  },
+  "fallbacks": {
+    "unsupported": "Keep the canonical asset and invoke it through its underlying Skill or documented manual configuration."
+  }
+}

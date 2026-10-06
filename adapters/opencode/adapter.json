@@ -1,0 +1,25 @@
+{
+  "host": "opencode",
+  "status": "verified",
+  "officialDocs": [
+    "https://opencode.ai/docs/skills/",
+    "https://opencode.ai/docs/commands/",
+    "https://opencode.ai/docs/mcp-servers/"
+  ],
+  "nativeDiscovery": {
+    "skills": [".opencode/skills", ".claude/skills", ".agents/skills"],
+    "agents": ".opencode/agent",
+    "commands": ".opencode/commands",
+    "mcp": "opencode.json"
+  },
+  "mapping": {
+    "skills": "copy-or-sync-selected-profile-assets",
+    "agents": "native-agent-or-documentation-fallback",
+    "commands": "optional-native-command-wrapper",
+    "references": "bundle-with-selected-skill-or-repository",
+    "evals": "repository-validation",
+    "hooks": "documented-fallback",
+    "mcp": "adapter-translation"
+  },
+  "progressiveDisclosure": "Skills are loaded on demand by the native skill tool."
+}

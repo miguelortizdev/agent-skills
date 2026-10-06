@@ -1,0 +1,24 @@
+{
+  "host": "cursor",
+  "status": "verified",
+  "officialDocs": [
+    "https://docs.cursor.com/context/skills",
+    "https://docs.cursor.com/context/rules"
+  ],
+  "nativeDiscovery": {
+    "skills": ".cursor/skills",
+    "agents": "manual-or-rule-fallback",
+    "commands": "manual-or-rule-fallback",
+    "mcp": "Cursor MCP configuration"
+  },
+  "mapping": {
+    "skills": "copy-or-sync-without-editing-canonical-source",
+    "agents": "short-rule-or-manual-invocation",
+    "commands": "short-rule-or-manual-invocation",
+    "references": "skill-local-or-repository-reference",
+    "evals": "repository-validation",
+    "hooks": "documented-fallback",
+    "mcp": "adapter-translation"
+  },
+  "progressiveDisclosure": "Keep long workflows in .cursor/skills and keep .cursor/rules concise."
+}
