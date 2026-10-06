@@ -25,7 +25,7 @@ The installer writes selected assets to OpenCode-compatible project paths:
 
 ```text
 .opencode/skills/
-.opencode/agent/
+.opencode/agents/
 .opencode/commands/
 .opencode/references/
 ```
