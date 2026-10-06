@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/addyosmani/agent-skills/schemas/hosts.schema.json",
+  "type": "object",
+  "required": ["version", "hosts"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "hosts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "displayName", "adapterPath", "nativePaths", "capabilities"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "displayName": {"type": "string", "minLength": 1},
+          "adapterPath": {"type": "string", "pattern": "^adapters/[a-z0-9-]+$"},
+          "nativePaths": {"type": "array", "items": {"type": "string"}},
+          "capabilities": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}
