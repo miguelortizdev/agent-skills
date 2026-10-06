@@ -43,14 +43,14 @@ all native host adapters have already been implemented.
 | `spec-driven-development` Skill | `skills/spec-driven-development/SKILL.md` | same | same | VERIFIED | VERIFIED | ADAPTED | ADAPTED | ADAPTED | ADAPTED | VERIFIED | Canonical content already present. |
 | `test-driven-development` Skill | `skills/test-driven-development/SKILL.md` | same | same | VERIFIED | VERIFIED | ADAPTED | ADAPTED | ADAPTED | ADAPTED | VERIFIED | Canonical content already present. |
 | `using-agent-skills` Skill | `skills/using-agent-skills/SKILL.md` | same | same | VERIFIED | VERIFIED | ADAPTED | ADAPTED | ADAPTED | ADAPTED | VERIFIED | Routing meta-skill remains available; native discovery may bypass it. |
-| Lifecycle Commands (9) | `commands/*.toml` | same | same | `commands/` + `.claude/commands/` | `.codex-plugin/plugin.json` | documented fallback | `.opencode/` documented fallback | `.gemini/commands/` | adapter pending | MIGRATED | Keep all canonical commands even when a host has no slash-command equivalent. |
-| Specialist Agents (4) | `agents/*.md` | same | same | native/plugin path | native/plugin path | documented fallback | documented fallback | documented fallback | adapter pending | MIGRATED | Agents remain separate from Skills. |
-| Shared References (7) | `references/*.md` | same | same | packaged | packaged | documented fallback | packaged/project path | packaged | adapter pending | MIGRATED | Shared links must remain valid. |
-| Tier 2 and Tier 3 Evals | `evals/` | same | same | plugin evals | adapter validation | adapter validation | adapter validation | adapter validation | adapter pending | MIGRATED | Deterministic evals remain CI-safe; behavioral evals remain opt-in. |
-| Hooks | `hooks/` | same | same | native shell hooks | documented fallback | documented fallback | documented fallback | documented fallback | adapter pending | MIGRATED | Do not delete unsupported hooks; preserve or document fallback. |
-| Validation Scripts | `scripts/` | same | same | native repository tools | native repository tools | native repository tools | native repository tools | native repository tools | adapter pending | MIGRATED | Existing scripts remain the baseline quality gates. |
-| Plugin Manifests | `plugin.json`, `.claude-plugin/`, `.codex-plugin/`, `.agents/` | same | same plus adapters | native manifests | native manifest | adapter metadata | adapter metadata | adapter metadata | adapter pending | MIGRATED | Preserve native manifests and version consistency. |
-| Host Setup Documentation | `docs/*-setup.md` | same | same plus adapter docs | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | pending | MIGRATED | Documentation is part of functional compatibility. |
+| Lifecycle Commands (9) | `commands/*.toml` | same | same | native Markdown variants | Skill fallback | documented fallback | `.opencode/commands/*.md` | preserved `.gemini/commands/*.toml` | `.opencode/commands/*.md` | VERIFIED | Keep all canonical commands and preserve host-native variants. |
+| Specialist Agents (4) | `agents/*.md` | same | same | `.claude/agents` | Skill/manual fallback | documented fallback | `.opencode/agents` V2 subagents | `.gemini/agents` | `.opencode/agents` V2 subagents | ADAPTED | Agent content remains canonical; adapters add only host-required metadata. |
+| Shared References (7) | `references/*.md` | same | same | packaged | packaged | documented fallback | packaged/project path | packaged | packaged/project path | VERIFIED | Shared links remain valid. |
+| Tier 2 and Tier 3 Evals | `evals/` | same | same | plugin evals | adapter validation | adapter validation | adapter validation | adapter validation | adapter validation | VERIFIED | Deterministic evals remain CI-safe; behavioral evals remain opt-in. |
+| Hooks | `hooks/` | same | same | native shell hooks | documented fallback | documented fallback | documented fallback | documented fallback | documented fallback | VERIFIED | Unsupported hooks remain canonical and documented. |
+| Validation Scripts | `scripts/` | same | same | native repository tools | native repository tools | native repository tools | native repository tools | native repository tools | native repository tools | VERIFIED | Existing scripts remain the baseline quality gates. |
+| Plugin Manifests | `plugin.json`, `.claude-plugin/`, `.codex-plugin/`, `.agents/` | same | same plus adapters | native manifests | native manifest | adapter metadata | adapter metadata | adapter metadata | adapter metadata | VERIFIED | Preserve native manifests and version consistency. |
+| Host Setup Documentation | `docs/*-setup.md` | same | same plus adapter docs | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Documentation is part of functional compatibility. |
 | MIT License and Attribution | `LICENSE` | same | same | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Must remain in all redistributed copies. |
 
 ## New Standardization Assets
@@ -60,17 +60,17 @@ They must not duplicate or replace the upstream assets above.
 
 | Capability | Upstream Path | Current Repository | Target Path | Claude | Codex | Cursor | OpenCode | Gemini | OpenChamber | Status | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Canonical asset registry | n/a | missing | `registry/catalog.json` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Metadata only: IDs, types, paths, source, enabled state. |
-| Host registry | n/a | missing | `registry/hosts.json` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Records supported discovery and fallback behavior. |
-| Registry schemas | n/a | missing | `registry/schema/` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Deterministic validation contract. |
-| Default profile | n/a | missing | `profiles/default.json` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Selects assets without copying content. |
-| Decameron profile | n/a | missing | `profiles/decameron.json` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Corporate selection/configuration only. |
-| Provider-neutral MCP registry | n/a | missing | `mcp/registry.json` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Environment variable references only; no secrets. |
-| Host adapters | n/a | missing | `adapters/<host>/` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Thin mappings and documented compatibility fallbacks. |
-| Cross-platform installer | n/a | missing | `scripts/install-agent-standard.js` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Node.js implementation; dry-run first and safe writes only. |
-| Adapter drift validator | n/a | missing | `scripts/validate-adapter-drift.js` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Detects missing assets, unknown commands, broken paths, and duplicate generated assets. |
-| Upstream provenance | n/a | missing | `upstream/agent-skills.json` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Stores repository, commit, and license. |
-| Upstream update report | n/a | missing | `scripts/check-agent-skills-upstream.js` | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | NOT_STARTED | Reports changes; never updates automatically. |
+| Canonical asset registry | n/a | present | `registry/catalog.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Metadata only: IDs, types, paths, source, enabled state. |
+| Host registry | n/a | present | `registry/hosts.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Records native paths, scopes, and fallback behavior. |
+| Registry schemas | n/a | present | `registry/schema/` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Deterministic validation contract. |
+| Default profile | n/a | present | `profiles/default.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Selects assets without copying content. |
+| Decameron profile | n/a | present | `profiles/decameron.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Corporate selection/configuration only. |
+| Provider-neutral MCP registry | n/a | present | `mcp/registry.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Environment variable references only; no secrets. |
+| Host adapters | n/a | present | `adapters/<host>/` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Thin mappings, native representations, and documented fallbacks. |
+| Cross-platform installer | n/a | present | `scripts/install-agent-standard.js` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Node.js implementation; dry-run, scoped destinations, and safe writes. |
+| Adapter drift validator | n/a | present | `scripts/validate-adapter-drift.js` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Detects missing capabilities, invalid paths, scope errors, and duplicate generated assets. |
+| Upstream provenance | n/a | present | `upstream/agent-skills.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Stores repository, commit, and license. |
+| Upstream update report | n/a | present | `scripts/check-agent-skills-upstream.js` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Reports changes; never updates automatically. |
 
 ## Parity Rules
 
