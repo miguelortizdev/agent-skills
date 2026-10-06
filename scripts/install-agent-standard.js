@@ -67,6 +67,40 @@ function hashFile(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
+function canonicalCommand(source) {
+  const content = fs.readFileSync(source, 'utf8');
+  const descriptionMatch = content.match(/^description\s*=\s*"((?:[^"\\]|\\.)*)"/m);
+  const promptMatch = content.match(/^prompt\s*=\s*"""\r?\n([\s\S]*?)\r?\n"""/m);
+  if (!descriptionMatch || !promptMatch) throw new Error(`malformed canonical command: ${source}`);
+  return {
+    description: JSON.parse(`"${descriptionMatch[1]}"`),
+    prompt: promptMatch[1],
+  };
+}
+
+function renderMarkdownCommand(command) {
+  return `---\ndescription: ${JSON.stringify(command.description)}\n---\n\n${command.prompt}\n`;
+}
+
+function commandAction(source, id, destination, representation) {
+  const command = canonicalCommand(source);
+  const filename = representation.filenameMap && representation.filenameMap[id] || id;
+  if (representation.format === 'markdown') {
+    return {
+      source,
+      content: renderMarkdownCommand(command),
+      target: safePath(destination, `${filename}${representation.extension}`),
+    };
+  }
+  if (representation.format === 'toml') {
+    return {
+      source,
+      target: safePath(destination, `${filename}${representation.extension}`),
+    };
+  }
+  throw new Error(`unsupported command representation: ${representation.format}`);
+}
+
 function manifestPath(installRoot) {
   return safePath(installRoot, path.join('.agent-standard', 'installation.json'));
 }
@@ -106,6 +140,10 @@ function buildPlan(options) {
       }
       const source = path.join(ROOT, asset.path);
       const targetBase = safePath(installRoot, destination);
+      if (type === 'command' && adapter.commandRepresentation) {
+        actions.push(commandAction(source, id, targetBase, adapter.commandRepresentation));
+        continue;
+      }
       const sourceIsDirectory = fs.lstatSync(source).isDirectory();
       for (const entry of filesIn(source)) {
         const targetRelative = type === 'skill' || sourceIsDirectory ? path.join(id, entry.relative) : entry.relative;
@@ -124,7 +162,8 @@ function executeInstall(plan) {
     assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
     if (fs.existsSync(action.target)) {
       if (fs.lstatSync(action.target).isSymbolicLink()) throw new Error(`refusing to write through symlink: ${action.target}`);
-      if (fs.readFileSync(action.source).equals(fs.readFileSync(action.target))) continue;
+      const sourceContent = Buffer.from(action.content ?? fs.readFileSync(action.source));
+      if (sourceContent.equals(fs.readFileSync(action.target))) continue;
       conflicts.push(action.target);
     }
   }
@@ -135,7 +174,8 @@ function executeInstall(plan) {
     const existed = fs.existsSync(action.target);
     if (!existed) {
       fs.mkdirSync(path.dirname(action.target), { recursive: true });
-      fs.copyFileSync(action.source, action.target, fs.constants.COPYFILE_EXCL);
+      if (action.content === undefined) fs.copyFileSync(action.source, action.target, fs.constants.COPYFILE_EXCL);
+      else fs.writeFileSync(action.target, action.content, { flag: 'wx' });
     }
     files.push({
       path: relative,

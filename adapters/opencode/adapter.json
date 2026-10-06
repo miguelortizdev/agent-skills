@@ -27,5 +27,10 @@
     "commands": ".opencode/commands",
     "references": ".opencode/references"
   },
+  "commandRepresentation": {
+    "format": "markdown",
+    "extension": ".md",
+    "filenameMap": {"plan": "plan"}
+  },
   "progressiveDisclosure": "Skills are loaded on demand by the native skill tool."
 }

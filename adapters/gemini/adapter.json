@@ -26,5 +26,10 @@
     "commands": ".gemini/commands",
     "references": ".gemini/references"
   },
+  "commandRepresentation": {
+    "format": "toml",
+    "extension": ".toml",
+    "filenameMap": {"plan": "planning"}
+  },
   "progressiveDisclosure": "Keep Skills on demand; use GEMINI.md only for persistent project context."
 }

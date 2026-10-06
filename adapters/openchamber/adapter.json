@@ -31,6 +31,11 @@
     "commands": ".opencode/commands",
     "references": ".opencode/references"
   },
+  "commandRepresentation": {
+    "format": "markdown",
+    "extension": ".md",
+    "filenameMap": {"plan": "plan"}
+  },
   "notes": [
     "OpenChamber is a workspace around OpenCode; do not invent a second canonical asset tree.",
     "Repository project actions and draft starters may be recorded in .openchamber/project.json.",
