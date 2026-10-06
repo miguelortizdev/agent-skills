@@ -65,3 +65,61 @@ test('rejects adapters that declare duplicated canonical content', () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /canonicalCopies/);
 });
+
+test('rejects a registry that omits an adapter native capability', () => {
+  const root = makeSandbox();
+  const hostsFile = path.join(root, 'registry', 'hosts.json');
+  const hosts = JSON.parse(fs.readFileSync(hostsFile, 'utf8'));
+  hosts.hosts.find((host) => host.id === 'opencode').capabilities = ['skills', 'agents', 'references', 'mcp'];
+  fs.writeFileSync(hostsFile, JSON.stringify(hosts));
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /omits native capability commands/);
+});
+
+test('rejects an adapter native capability absent from the registry', () => {
+  const root = makeSandbox();
+  const file = path.join(root, 'adapters', 'cursor', 'adapter.json');
+  const adapter = JSON.parse(fs.readFileSync(file, 'utf8'));
+  adapter.nativeCapabilities.push('commands');
+  fs.writeFileSync(file, JSON.stringify(adapter));
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /registry host cursor omits native capability commands/);
+});
+
+test('rejects a command representation without a registry command capability', () => {
+  const root = makeSandbox();
+  const hostsFile = path.join(root, 'registry', 'hosts.json');
+  const hosts = JSON.parse(fs.readFileSync(hostsFile, 'utf8'));
+  const cursor = hosts.hosts.find((host) => host.id === 'cursor');
+  cursor.capabilities = ['skills', 'references', 'mcp'];
+  const adapterFile = path.join(root, 'adapters', 'cursor', 'adapter.json');
+  const adapter = JSON.parse(fs.readFileSync(adapterFile, 'utf8'));
+  adapter.commandRepresentation = { format: 'markdown', extension: '.md' };
+  fs.writeFileSync(hostsFile, JSON.stringify(hosts));
+  fs.writeFileSync(adapterFile, JSON.stringify(adapter));
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /command representation without registry commands capability/);
+});
+
+test('rejects invalid scoped destinations and native path drift', () => {
+  const root = makeSandbox();
+  const adapterFile = path.join(root, 'adapters', 'opencode', 'adapter.json');
+  const adapter = JSON.parse(fs.readFileSync(adapterFile, 'utf8'));
+  adapter.installDestinations.global.agents = '/tmp/opencode-agents';
+  fs.writeFileSync(adapterFile, JSON.stringify(adapter));
+  let result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /invalid global destination for agents/);
+
+  const cleanRoot = makeSandbox();
+  const hostsFile = path.join(cleanRoot, 'registry', 'hosts.json');
+  const hosts = JSON.parse(fs.readFileSync(hostsFile, 'utf8'));
+  hosts.hosts.find((host) => host.id === 'opencode').nativePaths = ['.opencode/skills', '.opencode/commands'];
+  fs.writeFileSync(hostsFile, JSON.stringify(hosts));
+  result = run(cleanRoot);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /omits native path .opencode\/agents/);
+});
