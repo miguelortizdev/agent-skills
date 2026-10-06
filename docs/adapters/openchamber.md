@@ -19,9 +19,12 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
   --host openchamber --profile decameron --project --dry-run
 ```
 
-Use **Settings → Skills**, **Settings → Commands**, and **Settings → MCP** to
-inspect or configure the resulting project behavior. Repository project actions
-and draft starters use `.openchamber/project.json` when needed.
+The installer renders canonical commands as OpenCode-compatible Markdown files
+under `.opencode/commands/`, so OpenChamber can discover the same project-local
+command surface. Use **Settings → Skills**, **Settings → Commands**, and
+**Settings → MCP** to inspect or configure the resulting project behavior.
+Repository project actions and draft starters use `.openchamber/project.json`
+when needed.
 
 Official documentation: [Skills](https://docs.openchamber.dev/skills/),
 [Commands](https://docs.openchamber.dev/commands-snippets/),

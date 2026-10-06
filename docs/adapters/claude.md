@@ -21,6 +21,9 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 
 Use the native Claude plugin installation when the full upstream pack is
 desired. Use the installer when a project needs a selected profile and explicit
-ownership tracking.
+ownership tracking. The installer renders canonical TOML command definitions as
+Claude-native Markdown files under `.claude/commands/`; it does not copy TOML
+files into that directory.
 
-Official documentation: [Claude Code plugins](https://code.claude.com/docs/en/plugins).
+Official documentation: [Claude Code plugins](https://code.claude.com/docs/en/plugins)
+and [plugin components](https://code.claude.com/docs/en/plugins/components).
