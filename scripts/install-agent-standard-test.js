@@ -144,10 +144,14 @@ test('installs OpenCode and OpenChamber agents as V2 subagents', () => {
   }
 });
 
-test('does not install unsupported Codex agent files', () => {
+test('installs Codex custom agents using the documented TOML surface', () => {
   const root = makeSandbox();
   const result = run(root, '--host', 'codex', '--profile', 'default', '--project');
   assert.equal(result.status, 0, result.stdout + result.stderr);
+  const content = readInstalled(root, path.join('.codex', 'agents', 'code-reviewer.toml'));
+  assert.match(content, /^name = "code-reviewer"$/m);
+  assert.match(content, /^description = ".+"$/m);
+  assert.match(content, /^developer_instructions = """$/m);
   assert.equal(fs.existsSync(path.join(root, '.agents', 'agents')), false);
 });
 
@@ -155,6 +159,10 @@ test('uses isolated project and global destinations without touching the real ho
   const cases = [
     ['opencode', '.opencode/agents/code-reviewer.md', '.config/opencode/agents/code-reviewer.md'],
     ['gemini', '.gemini/agents/code-reviewer.md', '.gemini/agents/code-reviewer.md'],
+    ['openchamber', '.opencode/agents/code-reviewer.md', '.config/opencode/agents/code-reviewer.md'],
+    ['codex', '.codex/agents/code-reviewer.toml', '.codex/agents/code-reviewer.toml'],
+    ['claude', '.claude/agents/code-reviewer.md', '.claude/agents/code-reviewer.md'],
+    ['cursor', '.cursor/skills/api-and-interface-design/SKILL.md', '.cursor/skills/api-and-interface-design/SKILL.md'],
   ];
   for (const [host, projectPath, globalPath] of cases) {
     const projectRoot = makeSandbox();

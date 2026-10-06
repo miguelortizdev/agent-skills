@@ -18,11 +18,9 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 
 Codex does not need the full `using-agent-skills` meta-router preloaded when
 native routing is available. The installer installs project and global Skills
-under `.agents/skills/` and `~/.agents/skills/`. It intentionally does not
-create `.agents/agents/` or `.codex/agents/`: Codex custom agents use its own
-TOML configuration surface, so these Markdown personas remain available in the
-repository and through documented Skill-based fallbacks. Lifecycle commands
-are represented by their underlying Skills when no native slash-command
-equivalent exists.
+under `.agents/skills/` and `~/.agents/skills/`, and transforms canonical agent
+Markdown into Codex custom-agent TOML under `.codex/agents/` and
+`~/.codex/agents/`. Lifecycle commands are represented by their underlying
+Skills when no native slash-command equivalent exists.
 
 Official documentation: [Codex Skills](https://developers.openai.com/codex/skills).

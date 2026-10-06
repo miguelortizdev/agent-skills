@@ -12,7 +12,7 @@
       "id": "codex",
       "displayName": "Codex",
       "adapterPath": "adapters/codex",
-      "nativePaths": [".codex-plugin", ".agents/skills"],
+      "nativePaths": [".codex-plugin", ".agents/skills", ".codex/agents"],
       "capabilities": ["skills", "agents", "references", "mcp"]
     },
     {

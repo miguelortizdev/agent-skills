@@ -42,7 +42,7 @@
 | Host | Evidence | Result |
 | --- | --- | --- |
 | Claude | Official plugin component docs, native manifest paths, adapter drift validation | VERIFIED statically |
-| Codex | Official Skills/plugin docs, root `skills/` manifest, progressive disclosure preserved | VERIFIED statically |
+| Codex | Official Skills/plugin/subagent docs, `.agents/skills`, transformed `.codex/agents/*.toml`, progressive disclosure preserved | VERIFIED statically and by filesystem smoke tests |
 | Cursor | Official Skills/Rules docs, `.cursor/skills` mapping, no long workflow pasted into rules | VERIFIED statically |
 | OpenCode | Official Skills/Commands/Agents/MCP docs, `.opencode/{skills,commands,agents}` discovery mapping, V2 `mode: subagent` output | VERIFIED statically and by filesystem smoke tests |
 | Gemini | Official Agent Skills/custom command/subagent/MCP docs, preserved native command variants, `.gemini/{skills,commands,agents}` workspace/user-scope mapping | VERIFIED statically and by filesystem smoke tests |

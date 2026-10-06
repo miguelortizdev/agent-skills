@@ -92,6 +92,24 @@ function renderSubagent(source) {
   return `---\n${frontmatter}\nmode: subagent\n---\n${content.slice(closing + 5)}`;
 }
 
+function parseAgent(source) {
+  const content = fs.readFileSync(source, 'utf8');
+  if (!content.startsWith('---\n')) throw new Error(`malformed agent frontmatter: ${source}`);
+  const closing = content.indexOf('\n---\n', 4);
+  if (closing === -1) throw new Error(`malformed agent frontmatter: ${source}`);
+  const fields = Object.fromEntries(content.slice(4, closing).split('\n').flatMap((line) => {
+    const separator = line.indexOf(':');
+    return separator === -1 ? [] : [[line.slice(0, separator).trim(), line.slice(separator + 1).trim()]];
+  }));
+  if (!fields.name || !fields.description) throw new Error(`agent frontmatter requires name and description: ${source}`);
+  return { name: fields.name, description: fields.description, instructions: content.slice(closing + 5).trim() };
+}
+
+function renderCodexAgent(source) {
+  const agent = parseAgent(source);
+  return `name = ${JSON.stringify(agent.name)}\ndescription = ${JSON.stringify(agent.description)}\ndeveloper_instructions = """\n${agent.instructions}\n"""\n`;
+}
+
 function commandAction(source, id, destination, representation) {
   const filename = representation.filenameMap && representation.filenameMap[id] || id;
   const nativeSource = representation.nativeSourceDirectory && path.join(
@@ -121,6 +139,9 @@ function commandAction(source, id, destination, representation) {
 
 function agentAction(source, id, destination, representation) {
   const target = safePath(destination, `${id}.md`);
+  if (representation.format === 'toml') {
+    return { source, content: renderCodexAgent(source), target: safePath(destination, `${id}.toml`) };
+  }
   if (representation.format === 'markdown' && representation.addMode === 'subagent') {
     return { source, content: renderSubagent(source), target };
   }
