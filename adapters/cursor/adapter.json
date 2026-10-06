@@ -20,9 +20,16 @@
     "hooks": "documented-fallback",
     "mcp": "adapter-translation"
   },
+  "nativeCapabilities": ["skills"],
   "installDestinations": {
-    "skills": ".cursor/skills",
-    "references": ".cursor/references"
+    "project": {
+      "skills": ".cursor/skills",
+      "references": ".cursor/references"
+    },
+    "global": {
+      "skills": ".cursor/skills",
+      "references": ".cursor/references"
+    }
   },
   "progressiveDisclosure": "Keep long workflows in .cursor/skills and keep .cursor/rules concise."
 }

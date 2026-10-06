@@ -11,7 +11,7 @@
   "sourceRepository": "https://github.com/openchamber/openchamber",
   "nativeDiscovery": {
     "skills": ["OpenChamber Settings > Skills", ".opencode/skills"],
-    "agents": ".opencode/agent",
+    "agents": ".opencode/agents",
     "commands": ["OpenChamber Settings > Commands", ".opencode/commands"],
     "mcp": "OpenChamber Settings > MCP",
     "repositoryConfig": ".openchamber/project.json"
@@ -25,16 +25,29 @@
     "hooks": "underlying-opencode-or-documentation-fallback",
     "mcp": "local-server-or-remote-server-translation"
   },
+  "nativeCapabilities": ["skills", "commands", "agents", "references"],
   "installDestinations": {
-    "skills": ".opencode/skills",
-    "agents": ".opencode/agent",
-    "commands": ".opencode/commands",
-    "references": ".opencode/references"
+    "project": {
+      "skills": ".opencode/skills",
+      "agents": ".opencode/agents",
+      "commands": ".opencode/commands",
+      "references": ".opencode/references"
+    },
+    "global": {
+      "skills": ".config/opencode/skills",
+      "agents": ".config/opencode/agents",
+      "commands": ".config/opencode/commands",
+      "references": ".config/opencode/references"
+    }
   },
   "commandRepresentation": {
     "format": "markdown",
     "extension": ".md",
     "filenameMap": {"plan": "plan"}
+  },
+  "agentRepresentation": {
+    "format": "markdown",
+    "addMode": "subagent"
   },
   "notes": [
     "OpenChamber is a workspace around OpenCode; do not invent a second canonical asset tree.",

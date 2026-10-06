@@ -82,9 +82,27 @@ function renderMarkdownCommand(command) {
   return `---\ndescription: ${JSON.stringify(command.description)}\n---\n\n${command.prompt}\n`;
 }
 
+function renderSubagent(source) {
+  const content = fs.readFileSync(source, 'utf8');
+  if (!content.startsWith('---\n')) throw new Error(`malformed agent frontmatter: ${source}`);
+  const closing = content.indexOf('\n---\n', 4);
+  if (closing === -1) throw new Error(`malformed agent frontmatter: ${source}`);
+  const frontmatter = content.slice(4, closing);
+  if (/^mode\s*:/m.test(frontmatter)) return content;
+  return `---\n${frontmatter}\nmode: subagent\n---\n${content.slice(closing + 5)}`;
+}
+
 function commandAction(source, id, destination, representation) {
-  const command = canonicalCommand(source);
   const filename = representation.filenameMap && representation.filenameMap[id] || id;
+  const nativeSource = representation.nativeSourceDirectory && path.join(
+    ROOT,
+    representation.nativeSourceDirectory,
+    `${filename}${representation.extension}`,
+  );
+  if (nativeSource && fs.existsSync(nativeSource)) {
+    return { source: nativeSource, target: safePath(destination, `${filename}${representation.extension}`) };
+  }
+  const command = canonicalCommand(source);
   if (representation.format === 'markdown') {
     return {
       source,
@@ -99,6 +117,20 @@ function commandAction(source, id, destination, representation) {
     };
   }
   throw new Error(`unsupported command representation: ${representation.format}`);
+}
+
+function agentAction(source, id, destination, representation) {
+  const target = safePath(destination, `${id}.md`);
+  if (representation.format === 'markdown' && representation.addMode === 'subagent') {
+    return { source, content: renderSubagent(source), target };
+  }
+  return { source, target };
+}
+
+function installDestinations(adapter, scope) {
+  const destinations = adapter.installDestinations;
+  if (!destinations) return {};
+  return destinations[scope] || destinations;
 }
 
 function manifestPath(installRoot) {
@@ -120,17 +152,18 @@ function buildPlan(options) {
   if (!host) throw new Error(`unknown host: ${options.host}`);
   const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
+  const scope = options.global ? 'global' : 'project';
   const installRoot = options.global ? os.homedir() : process.cwd();
   const installationManifest = manifestPath(installRoot);
   const existingManifest = readManifest(installationManifest);
-  if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== (options.global ? 'global' : 'project'))) {
+  if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== scope)) {
     throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
   }
   const actions = [];
   const skipped = [];
 
   for (const [type, field] of Object.entries(TYPE_FIELDS)) {
-    const destination = adapter.installDestinations && adapter.installDestinations[field];
+    const destination = installDestinations(adapter, scope)[field];
     for (const id of profile[field] || []) {
       const asset = assets.get(id);
       if (!asset || asset.type !== type) throw new Error(`${profile.name}.${field} references an invalid ${type}: ${id}`);
@@ -142,6 +175,10 @@ function buildPlan(options) {
       const targetBase = safePath(installRoot, destination);
       if (type === 'command' && adapter.commandRepresentation) {
         actions.push(commandAction(source, id, targetBase, adapter.commandRepresentation));
+        continue;
+      }
+      if (type === 'agent' && adapter.agentRepresentation) {
+        actions.push(agentAction(source, id, targetBase, adapter.agentRepresentation));
         continue;
       }
       const sourceIsDirectory = fs.lstatSync(source).isDirectory();

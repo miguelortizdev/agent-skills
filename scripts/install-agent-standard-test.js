@@ -20,7 +20,13 @@ function makeSandbox() {
 }
 
 function run(root, ...args) {
-  return spawnSync(process.execPath, [SCRIPT, ...args], { cwd: root, encoding: 'utf8' });
+  const env = args.at(-1) && args.at(-1).env;
+  if (env) args.pop();
+  return spawnSync(process.execPath, [SCRIPT, ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    env: env ? { ...process.env, ...env } : process.env,
+  });
 }
 
 function readInstalled(root, relativePath) {
@@ -48,7 +54,7 @@ test('installs commands using each host native representation', () => {
       extension: '.md',
       directory: path.join('.claude', 'commands'),
       filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'review.md', 'ship.md'],
-      includes: ['description:', 'Invoke the planning-and-task-breakdown skill.'],
+      includes: ['description:', 'Invoke the agent-skills:planning-and-task-breakdown skill.'],
     },
     {
       host: 'opencode',
@@ -85,6 +91,98 @@ test('installs commands using each host native representation', () => {
     assert.equal(fs.existsSync(path.join(root, expected.path)), true);
     const content = readInstalled(root, expected.path);
     for (const fragment of expected.includes) assert.match(content, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
+test('preserves upstream Claude and Gemini command implementations', () => {
+  const nativeCommands = [
+    { host: 'claude', directory: '.claude/commands', extension: '.md', planName: 'plan' },
+    { host: 'gemini', directory: '.gemini/commands', extension: '.toml', planName: 'planning' },
+  ];
+  const profile = JSON.parse(fs.readFileSync(path.join(ROOT, 'profiles', 'default.json'), 'utf8'));
+
+  for (const expected of nativeCommands) {
+    const root = makeSandbox();
+    const result = run(root, '--host', expected.host, '--profile', 'default', '--project');
+    assert.equal(result.status, 0, `${expected.host}: ${result.stdout}${result.stderr}`);
+    for (const id of ['code-simplify', 'constraints', 'ship', 'webperf']) {
+      const filename = `${id}${expected.extension}`;
+      assert.equal(
+        readInstalled(root, path.join(expected.directory, filename)),
+        fs.readFileSync(path.join(ROOT, expected.directory, filename), 'utf8'),
+      );
+    }
+    const installedPlan = readInstalled(root, path.join(expected.directory, `${expected.planName}${expected.extension}`));
+    const sourcePlan = fs.readFileSync(path.join(ROOT, expected.directory, `${expected.planName}${expected.extension}`), 'utf8');
+    assert.equal(installedPlan, sourcePlan);
+    assert.equal(fs.readdirSync(path.join(root, expected.directory)).length, profile.commands.length);
+  }
+});
+
+test('installs Gemini custom subagents with native frontmatter', () => {
+  const root = makeSandbox();
+  const result = run(root, '--host', 'gemini', '--profile', 'default', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  for (const id of ['code-reviewer', 'security-auditor', 'test-engineer', 'web-performance-auditor']) {
+    const content = readInstalled(root, path.join('.gemini', 'agents', `${id}.md`));
+    assert.match(content, new RegExp(`^---\\nname: ${id}\\n`));
+    assert.match(content, /^description: .+$/m);
+  }
+});
+
+test('installs OpenCode and OpenChamber agents as V2 subagents', () => {
+  for (const host of ['opencode', 'openchamber']) {
+    const root = makeSandbox();
+    const result = run(root, '--host', host, '--profile', 'default', '--project');
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+    for (const id of ['code-reviewer', 'security-auditor', 'test-engineer', 'web-performance-auditor']) {
+      const content = readInstalled(root, path.join('.opencode', 'agents', `${id}.md`));
+      assert.match(content, /^mode: subagent$/m);
+      assert.match(content, new RegExp(`^name: ${id}$`, 'm'));
+    }
+    assert.equal(fs.existsSync(path.join(root, '.opencode', 'agent')), false);
+  }
+});
+
+test('does not install unsupported Codex agent files', () => {
+  const root = makeSandbox();
+  const result = run(root, '--host', 'codex', '--profile', 'default', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'agents')), false);
+});
+
+test('uses isolated project and global destinations without touching the real home', () => {
+  const cases = [
+    ['opencode', '.opencode/agents/code-reviewer.md', '.config/opencode/agents/code-reviewer.md'],
+    ['gemini', '.gemini/agents/code-reviewer.md', '.gemini/agents/code-reviewer.md'],
+  ];
+  for (const [host, projectPath, globalPath] of cases) {
+    const projectRoot = makeSandbox();
+    const project = run(projectRoot, '--host', host, '--profile', 'default', '--project');
+    assert.equal(project.status, 0, `${host} project: ${project.stdout}${project.stderr}`);
+    assert.equal(fs.existsSync(path.join(projectRoot, projectPath)), true);
+
+    const globalRoot = makeSandbox();
+    const home = makeSandbox();
+    const global = run(globalRoot, '--host', host, '--profile', 'default', '--global', { env: { HOME: home } });
+    assert.equal(global.status, 0, `${host} global: ${global.stdout}${global.stderr}`);
+    assert.equal(fs.existsSync(path.join(home, globalPath)), true);
+    assert.equal(fs.existsSync(path.join(globalRoot, projectPath)), false);
+  }
+});
+
+test('default profile installs all selected assets or documented fallbacks per host', () => {
+  const profile = JSON.parse(fs.readFileSync(path.join(ROOT, 'profiles', 'default.json'), 'utf8'));
+  assert.equal(profile.skills.length, 25);
+  assert.equal(profile.commands.length, 9);
+  assert.equal(profile.agents.length, 4);
+  assert.equal(profile.references.length, 7);
+  for (const host of ['claude', 'codex', 'cursor', 'opencode', 'gemini', 'openchamber']) {
+    const root = makeSandbox();
+    const result = run(root, '--host', host, '--profile', 'default', '--project');
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installation.json'), 'utf8'));
+    assert.ok(manifest.files.length >= profile.skills.length);
   }
 });
 

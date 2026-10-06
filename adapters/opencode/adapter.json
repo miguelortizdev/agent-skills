@@ -8,7 +8,7 @@
   ],
   "nativeDiscovery": {
     "skills": [".opencode/skills", ".claude/skills", ".agents/skills"],
-    "agents": ".opencode/agent",
+    "agents": ".opencode/agents",
     "commands": ".opencode/commands",
     "mcp": "opencode.json"
   },
@@ -21,16 +21,29 @@
     "hooks": "documented-fallback",
     "mcp": "adapter-translation"
   },
+  "nativeCapabilities": ["skills", "commands", "agents", "references"],
   "installDestinations": {
-    "skills": ".opencode/skills",
-    "agents": ".opencode/agent",
-    "commands": ".opencode/commands",
-    "references": ".opencode/references"
+    "project": {
+      "skills": ".opencode/skills",
+      "agents": ".opencode/agents",
+      "commands": ".opencode/commands",
+      "references": ".opencode/references"
+    },
+    "global": {
+      "skills": ".config/opencode/skills",
+      "agents": ".config/opencode/agents",
+      "commands": ".config/opencode/commands",
+      "references": ".config/opencode/references"
+    }
   },
   "commandRepresentation": {
     "format": "markdown",
     "extension": ".md",
     "filenameMap": {"plan": "plan"}
+  },
+  "agentRepresentation": {
+    "format": "markdown",
+    "addMode": "subagent"
   },
   "progressiveDisclosure": "Skills are loaded on demand by the native skill tool."
 }
