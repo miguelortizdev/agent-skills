@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "servers": [
+    {
+      "id": "kubernetes",
+      "command": "kubernetes-mcp-server",
+      "args": [],
+      "environment": [
+        {"name": "KUBECONFIG", "valueFrom": "environment", "required": false}
+      ]
+    }
+  ]
+}
