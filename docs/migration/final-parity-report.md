@@ -66,7 +66,8 @@ executed.
 - `node scripts/validate-adapter-drift.js`: 6 hosts passed.
 - `node scripts/validate-upstream-parity.js`: 210 baseline paths present.
 - `node scripts/run-evals.js --min-rank1 95`: 141 checks passed, rank-1 `100%` (`89/89`).
-- New focused validator and installer tests: all passed.
+- Full Node test suite: 148 tests passed, 0 failed.
+- Native representation, subagent, scope, and adapter-drift tests: all passed.
 - `git diff --check`: passed.
 
 ## Functional Loss
