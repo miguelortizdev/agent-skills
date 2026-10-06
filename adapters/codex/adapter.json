@@ -20,5 +20,10 @@
     "hooks": "documented-fallback",
     "mcp": "adapter-translation"
   },
+  "installDestinations": {
+    "skills": ".agents/skills",
+    "agents": ".agents/agents",
+    "references": "references"
+  },
   "progressiveDisclosure": "Do not preload using-agent-skills when Codex native routing is available."
 }

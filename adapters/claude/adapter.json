@@ -21,6 +21,12 @@
     "hooks": "native-plugin-or-documented-fallback",
     "mcp": "adapter-translation"
   },
+  "installDestinations": {
+    "skills": ".claude/skills",
+    "agents": ".claude/agents",
+    "commands": ".claude/commands",
+    "references": "references"
+  },
   "fallbacks": {
     "unsupported": "Keep the canonical asset and invoke it through its underlying Skill or documented manual configuration."
   }

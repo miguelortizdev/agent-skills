@@ -21,5 +21,11 @@
     "hooks": "documented-fallback",
     "mcp": "adapter-translation"
   },
+  "installDestinations": {
+    "skills": ".opencode/skills",
+    "agents": ".opencode/agent",
+    "commands": ".opencode/commands",
+    "references": ".opencode/references"
+  },
   "progressiveDisclosure": "Skills are loaded on demand by the native skill tool."
 }

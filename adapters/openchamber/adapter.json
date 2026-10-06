@@ -25,6 +25,12 @@
     "hooks": "underlying-opencode-or-documentation-fallback",
     "mcp": "local-server-or-remote-server-translation"
   },
+  "installDestinations": {
+    "skills": ".opencode/skills",
+    "agents": ".opencode/agent",
+    "commands": ".opencode/commands",
+    "references": ".opencode/references"
+  },
   "notes": [
     "OpenChamber is a workspace around OpenCode; do not invent a second canonical asset tree.",
     "Repository project actions and draft starters may be recorded in .openchamber/project.json.",
