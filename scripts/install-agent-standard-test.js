@@ -98,6 +98,31 @@ test('does not invent command files for hosts without native command support', (
   }
 });
 
+test('keeps generated commands idempotent and refuses modified commands', () => {
+  const root = makeSandbox();
+  const first = run(root, '--host', 'claude', '--profile', 'decameron', '--project');
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  const second = run(root, '--host', 'claude', '--profile', 'decameron', '--project');
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+
+  const target = path.join(root, '.claude', 'commands', 'plan.md');
+  fs.appendFileSync(target, '\nlocal modification\n');
+  const conflict = run(root, '--host', 'claude', '--profile', 'decameron', '--project');
+  assert.equal(conflict.status, 1);
+  assert.match(conflict.stderr, /refusing to overwrite existing files/);
+});
+
+test('uninstalls generated native command files', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'opencode', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.opencode', 'commands', 'plan.md')), true);
+
+  const uninstall = run(root, '--host', 'opencode', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.opencode')), false);
+});
+
 test('safe install is idempotent for identical files', () => {
   const root = makeSandbox();
   const first = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
