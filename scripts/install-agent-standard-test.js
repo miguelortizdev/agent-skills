@@ -69,3 +69,40 @@ test('safe install refuses symlinked destination directories', () => {
     fs.rmSync(outside, { recursive: true, force: true });
   }
 });
+
+test('records ownership and uninstalls only the selected profile', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const manifestPath = path.join(root, '.agent-standard', 'installation.json');
+  assert.equal(fs.existsSync(manifestPath), true);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  assert.equal(manifest.profile, 'decameron');
+  assert.ok(manifest.files.length > 0);
+
+  const uninstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
+  assert.equal(fs.existsSync(manifestPath), false);
+});
+
+test('refuses to mix profiles until the installed profile is removed', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const second = run(root, '--host', 'cursor', '--profile', 'default', '--project');
+  assert.equal(second.status, 1);
+  assert.match(second.stderr, /already installed/);
+});
+
+test('does not uninstall a file modified after installation', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const target = path.join(root, '.cursor', 'skills', 'api-and-interface-design', 'SKILL.md');
+  fs.appendFileSync(target, '\nlocal modification\n');
+  const uninstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 1);
+  assert.match(uninstall.stderr, /modified files/);
+  assert.equal(fs.existsSync(target), true);
+});

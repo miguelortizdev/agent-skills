@@ -3,6 +3,7 @@
 'use strict';
 
 const fs = require('fs');
+const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
 
@@ -17,10 +18,11 @@ function readJson(file) {
 }
 
 function parseArgs(argv) {
-  const options = { dryRun: false, global: false, project: false };
+  const options = { dryRun: false, global: false, project: false, uninstall: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') options.dryRun = true;
+    else if (arg === '--uninstall') options.uninstall = true;
     else if (arg === '--global') options.global = true;
     else if (arg === '--project') options.project = true;
     else if (arg === '--host') options.host = argv[++index];
@@ -61,6 +63,20 @@ function filesIn(source, relative = '') {
   return fs.readdirSync(current).flatMap((entry) => filesIn(source, path.join(relative, entry)));
 }
 
+function hashFile(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function manifestPath(installRoot) {
+  return safePath(installRoot, path.join('.agent-standard', 'installation.json'));
+}
+
+function readManifest(file) {
+  if (!fs.existsSync(file)) return null;
+  if (fs.lstatSync(file).isSymbolicLink()) throw new Error(`refusing to read symlinked manifest: ${file}`);
+  return readJson(file);
+}
+
 function buildPlan(options) {
   const catalog = readJson(CATALOG_FILE);
   const profile = readJson(path.join(PROFILE_DIR, `${options.profile}.json`));
@@ -71,6 +87,11 @@ function buildPlan(options) {
   const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
   const installRoot = options.global ? os.homedir() : process.cwd();
+  const installationManifest = manifestPath(installRoot);
+  const existingManifest = readManifest(installationManifest);
+  if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== (options.global ? 'global' : 'project'))) {
+    throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
+  }
   const actions = [];
   const skipped = [];
 
@@ -93,11 +114,12 @@ function buildPlan(options) {
       }
     }
   }
-  return { options, host, profile, installRoot, actions, skipped };
+  return { options, host, profile, installRoot, actions, skipped, installationManifest, existingManifest };
 }
 
-function execute(plan) {
+function executeInstall(plan) {
   const conflicts = [];
+  const previousFiles = new Map((plan.existingManifest && plan.existingManifest.files || []).map((file) => [file.path, file]));
   for (const action of plan.actions) {
     assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
     if (fs.existsSync(action.target)) {
@@ -107,21 +129,88 @@ function execute(plan) {
     }
   }
   if (conflicts.length) throw new Error(`refusing to overwrite existing files:\n${conflicts.join('\n')}`);
+  const files = [];
   for (const action of plan.actions) {
-    if (fs.existsSync(action.target)) continue;
-    fs.mkdirSync(path.dirname(action.target), { recursive: true });
-    fs.copyFileSync(action.source, action.target, fs.constants.COPYFILE_EXCL);
+    const relative = path.relative(plan.installRoot, action.target);
+    const existed = fs.existsSync(action.target);
+    if (!existed) {
+      fs.mkdirSync(path.dirname(action.target), { recursive: true });
+      fs.copyFileSync(action.source, action.target, fs.constants.COPYFILE_EXCL);
+    }
+    files.push({
+      path: relative,
+      sha256: hashFile(action.target),
+      created: previousFiles.has(relative) ? previousFiles.get(relative).created : !existed,
+    });
+  }
+  assertNoSymlinkPath(plan.installRoot, path.dirname(plan.installationManifest));
+  fs.mkdirSync(path.dirname(plan.installationManifest), { recursive: true });
+  const temporary = `${plan.installationManifest}.tmp-${process.pid}`;
+  fs.writeFileSync(temporary, `${JSON.stringify({ version: 1, host: plan.host.id, profile: plan.profile.name, scope: plan.options.global ? 'global' : 'project', files }, null, 2)}\n`);
+  fs.renameSync(temporary, plan.installationManifest);
+}
+
+function removeEmptyParents(start, stop) {
+  let current = start;
+  while (current !== stop && current.startsWith(`${stop}${path.sep}`) && fs.existsSync(current)) {
+    if (fs.lstatSync(current).isSymbolicLink() || fs.readdirSync(current).length > 0) break;
+    fs.rmdirSync(current);
+    current = path.dirname(current);
   }
 }
 
+function executeUninstall(plan) {
+  const modified = [];
+  const removable = [];
+  for (const entry of plan.existingManifest.files || []) {
+    const target = safePath(plan.installRoot, entry.path);
+    assertNoSymlinkPath(plan.installRoot, path.dirname(target));
+    if (!entry.created || !fs.existsSync(target)) continue;
+    if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile() || hashFile(target) !== entry.sha256) {
+      modified.push(target);
+      continue;
+    }
+    removable.push(target);
+  }
+  if (modified.length) throw new Error(`refusing to uninstall modified files:\n${modified.join('\n')}`);
+  for (const target of removable) {
+    fs.unlinkSync(target);
+    removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
+  fs.unlinkSync(plan.installationManifest);
+  removeEmptyParents(path.dirname(plan.installationManifest), plan.installRoot);
+}
+
+function uninstallPlan(options) {
+  const installRoot = options.global ? os.homedir() : process.cwd();
+  const installationManifest = manifestPath(installRoot);
+  const existingManifest = readManifest(installationManifest);
+  if (!existingManifest) throw new Error('no installation manifest found; cannot safely uninstall untracked files');
+  if (existingManifest.host !== options.host || existingManifest.profile !== options.profile || existingManifest.scope !== (options.global ? 'global' : 'project')) {
+    throw new Error(`installation manifest belongs to ${existingManifest.host}/${existingManifest.profile}, not ${options.host}/${options.profile}`);
+  }
+  return { options, host: { id: existingManifest.host, displayName: existingManifest.host }, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], skipped: [] };
+}
+
+function execute(plan) {
+  if (plan.options.uninstall) return executeUninstall(plan);
+  return executeInstall(plan);
+}
+
 function main() {
-  const plan = buildPlan(parseArgs(process.argv.slice(2)));
-  console.log(`${plan.options.dryRun ? 'Dry run' : 'Install'}: ${plan.host.displayName} / ${plan.profile.name}`);
+  const options = parseArgs(process.argv.slice(2));
+  const plan = options.uninstall ? uninstallPlan(options) : buildPlan(options);
+  console.log(`${plan.options.dryRun ? 'Dry run' : plan.options.uninstall ? 'Uninstall' : 'Install'}: ${plan.host.displayName} / ${plan.profile.name}`);
   console.log(`Target root: ${plan.installRoot}`);
-  for (const action of plan.actions) console.log(`${plan.options.dryRun ? '  would copy' : '  copy'} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
+  if (plan.options.uninstall) {
+    for (const entry of plan.existingManifest.files || []) console.log(`${plan.options.dryRun ? '  would remove' : '  remove'} ${entry.path}`);
+  } else {
+    for (const action of plan.actions) console.log(`${plan.options.dryRun ? '  would copy' : '  copy'} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
+    console.log(`${plan.options.dryRun ? '  would write' : '  write'} .agent-standard/installation.json`);
+  }
   for (const skipped of plan.skipped) console.log(`  skip ${skipped}`);
   if (!plan.options.dryRun) execute(plan);
-  console.log(plan.options.dryRun ? 'No files changed.' : 'Installation complete.');
+  console.log(plan.options.dryRun ? 'No files changed.' : plan.options.uninstall ? 'Uninstallation complete.' : 'Installation complete.');
 }
 
 try {
