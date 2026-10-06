@@ -19,8 +19,8 @@
       "id": "cursor",
       "displayName": "Cursor",
       "adapterPath": "adapters/cursor",
-      "nativePaths": [".cursor/skills", ".cursor/rules"],
-      "capabilities": ["skills", "references", "mcp"]
+      "nativePaths": [".cursor/skills", ".cursor/commands", ".cursor/agents", ".cursor/rules"],
+      "capabilities": ["skills", "commands", "agents", "references", "mcp"]
     },
     {
       "id": "opencode",

@@ -107,7 +107,9 @@ function parseAgent(source) {
 
 function renderCodexAgent(source) {
   const agent = parseAgent(source);
-  return `name = ${JSON.stringify(agent.name)}\ndescription = ${JSON.stringify(agent.description)}\ndeveloper_instructions = """\n${agent.instructions}\n"""\n`;
+  // Basic TOML strings keep arbitrary instruction text from closing a multiline
+  // value or being interpreted as TOML syntax.
+  return `name = ${JSON.stringify(agent.name)}\ndescription = ${JSON.stringify(agent.description)}\ndeveloper_instructions = ${JSON.stringify(agent.instructions)}\n`;
 }
 
 function commandAction(source, id, destination, representation) {

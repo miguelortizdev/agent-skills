@@ -81,11 +81,11 @@ test('rejects an adapter native capability absent from the registry', () => {
   const root = makeSandbox();
   const file = path.join(root, 'adapters', 'cursor', 'adapter.json');
   const adapter = JSON.parse(fs.readFileSync(file, 'utf8'));
-  adapter.nativeCapabilities.push('commands');
+  adapter.nativeCapabilities.push('hooks');
   fs.writeFileSync(file, JSON.stringify(adapter));
   const result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /registry host cursor omits native capability commands/);
+  assert.match(result.stderr, /registry host cursor omits native capability hooks/);
 });
 
 test('rejects a command representation without a registry command capability', () => {
@@ -96,6 +96,7 @@ test('rejects a command representation without a registry command capability', (
   cursor.capabilities = ['skills', 'references', 'mcp'];
   const adapterFile = path.join(root, 'adapters', 'cursor', 'adapter.json');
   const adapter = JSON.parse(fs.readFileSync(adapterFile, 'utf8'));
+  adapter.nativeCapabilities = adapter.nativeCapabilities.filter((capability) => !['commands', 'agents'].includes(capability));
   adapter.commandRepresentation = { format: 'markdown', extension: '.md' };
   fs.writeFileSync(hostsFile, JSON.stringify(hosts));
   fs.writeFileSync(adapterFile, JSON.stringify(adapter));

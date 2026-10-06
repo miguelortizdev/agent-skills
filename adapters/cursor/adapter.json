@@ -3,33 +3,43 @@
   "status": "verified",
   "officialDocs": [
     "https://docs.cursor.com/context/skills",
+    "https://docs.cursor.com/context/commands",
+    "https://docs.cursor.com/context/subagents",
     "https://docs.cursor.com/context/rules"
   ],
   "nativeDiscovery": {
     "skills": ".cursor/skills",
-    "agents": "manual-or-rule-fallback",
-    "commands": "manual-or-rule-fallback",
+    "agents": ".cursor/agents",
+    "commands": ".cursor/commands",
     "mcp": "Cursor MCP configuration"
   },
   "mapping": {
     "skills": "copy-or-sync-without-editing-canonical-source",
-    "agents": "short-rule-or-manual-invocation",
-    "commands": "short-rule-or-manual-invocation",
+    "agents": "native-project-or-user-scope",
+    "commands": "native-project-command",
     "references": "skill-local-or-repository-reference",
     "evals": "repository-validation",
     "hooks": "documented-fallback",
     "mcp": "adapter-translation"
   },
-  "nativeCapabilities": ["skills"],
+  "nativeCapabilities": ["skills", "commands", "agents", "references"],
   "installDestinations": {
     "project": {
       "skills": ".cursor/skills",
+      "commands": ".cursor/commands",
+      "agents": ".cursor/agents",
       "references": ".cursor/references"
     },
     "global": {
       "skills": ".cursor/skills",
+      "agents": ".cursor/agents",
       "references": ".cursor/references"
     }
+  },
+  "commandRepresentation": {
+    "format": "markdown",
+    "extension": ".md",
+    "filenameMap": {"plan": "plan"}
   },
   "progressiveDisclosure": "Keep long workflows in .cursor/skills and keep .cursor/rules concise."
 }

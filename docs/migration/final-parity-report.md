@@ -28,8 +28,8 @@
 - Profiles: `profiles/default.json` and `profiles/decameron.json`.
 - Provider-neutral MCP registry: `mcp/registry.json` and schema.
 - Thin adapters: Claude, Codex, Cursor, OpenCode, Gemini, and OpenChamber.
-- Host-native command preservation for Claude/Gemini and V2 subagent rendering
-  for OpenCode/OpenChamber.
+- Host-native command preservation for Claude/Gemini/Cursor and V2 subagent
+  rendering for OpenCode/OpenChamber.
 - Scope-specific project/global destinations with isolated installer coverage.
 - Cross-platform Node.js installer with dry-run and conflict-safe writes.
 - Registry, profile, MCP, adapter drift, and upstream path validators.
@@ -43,7 +43,7 @@
 | --- | --- | --- |
 | Claude | Official plugin component docs, native manifest paths, adapter drift validation | VERIFIED statically |
 | Codex | Official Skills/plugin/subagent docs, `.agents/skills`, transformed `.codex/agents/*.toml`, progressive disclosure preserved | VERIFIED statically and by filesystem smoke tests |
-| Cursor | Official Skills/Rules docs, `.cursor/skills` mapping, no long workflow pasted into rules | VERIFIED statically |
+| Cursor | Official Skills/Commands/Subagents/Rules docs, `.cursor/{skills,commands,agents}` mapping, project Commands and project/user Agents | VERIFIED statically and by filesystem smoke tests |
 | OpenCode | Official Skills/Commands/Agents/MCP docs, `.opencode/{skills,commands,agents}` discovery mapping, V2 `mode: subagent` output | VERIFIED statically and by filesystem smoke tests |
 | Gemini | Official Agent Skills/custom command/subagent/MCP docs, preserved native command variants, `.gemini/{skills,commands,agents}` workspace/user-scope mapping | VERIFIED statically and by filesystem smoke tests |
 | OpenChamber | Official Skills, Commands, MCP, Repository Config docs and official source repository; mapped through OpenCode V2 plus `.openchamber/project.json` | VERIFIED statically and by filesystem smoke tests |
@@ -66,7 +66,7 @@ executed.
 - `node scripts/validate-adapter-drift.js`: 6 hosts passed.
 - `node scripts/validate-upstream-parity.js`: 210 baseline paths present.
 - `node scripts/run-evals.js --min-rank1 95`: 141 checks passed, rank-1 `100%` (`89/89`).
-- Full Node test suite: 148 tests passed, 0 failed.
+- Full Node test suite: 152 tests passed, 0 failed.
 - Native representation, subagent, scope, and adapter-drift tests: all passed.
 - `git diff --check`: passed.
 

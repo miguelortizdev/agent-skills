@@ -6,7 +6,9 @@ How to wire [agent-skills](../README.md) into **Cursor** using current, supporte
 
 ## What Cursor supports today
 
-Cursor combines **rules** (short policies) and **skills** (full workflows):
+Cursor combines **rules** (short policies), **skills** (full workflows),
+**Commands** (project Markdown entry points), and **subagents** (specialist
+Markdown agents):
 
 | Layer | Path | Role |
 |-------|------|------|
@@ -14,8 +16,11 @@ Cursor combines **rules** (short policies) and **skills** (full workflows):
 | **Project skills** | `.cursor/skills/<skill-name>/SKILL.md` | Agent-discovered workflows; read when the task matches the skill `description` |
 | **User rules** | Cursor Settings → Rules | Account-wide policies |
 | **User skills** (optional) | `~/.cursor/skills/` | Global skills available in every workspace |
+| **Project Commands** | `.cursor/commands/*.md` | User-invoked workflow entry points |
+| **Project subagents** | `.cursor/agents/*.md` | Specialist agents available to the project |
+| **User subagents** | `~/.cursor/agents/*.md` | Specialist agents available across workspaces |
 
-Docs: [Rules](https://docs.cursor.com/context/rules) · [Skills](https://docs.cursor.com/context/skills) (URLs may redirect as Cursor updates docs).
+Docs: [Rules](https://docs.cursor.com/context/rules) · [Skills](https://docs.cursor.com/context/skills) · [Commands](https://docs.cursor.com/context/commands) · [Subagents](https://docs.cursor.com/context/subagents) (URLs may redirect as Cursor updates docs).
 
 ### Rules vs skills
 
@@ -39,11 +44,13 @@ your-project/
 ├── .cursor/
 │   ├── rules/                    # Short .mdc policies (yours)
 │   │   └── agent-skills.mdc      # Optional: “use project skills” pointer
-│   └── skills/                   # What Cursor Agent loads
-│       ├── using-agent-skills/
-│       ├── test-driven-development/
-│       ├── code-review-and-quality/
-│       └── …                     # Synced from agent-skills + your own skills
+│   ├── skills/                   # What Cursor Agent loads
+│   │   ├── using-agent-skills/
+│   │   ├── test-driven-development/
+│   │   ├── code-review-and-quality/
+│   │   └── …                     # Synced from agent-skills + your own skills
+│   ├── commands/                 # Project command Markdown files
+│   └── agents/                   # Project specialist agents
 └── agent-skills/                 # Optional: git submodule or vendor clone
     └── skills/                   # Upstream source only
 ```
@@ -173,7 +180,7 @@ Full tree: `skills/using-agent-skills/SKILL.md` in the repo.
 | Maintain two diverging copies | `rsync` from upstream; commit `.cursor/skills/` |
 | Many `alwaysApply: true` rules | One routing rule + focused globs rules |
 | Rely on `.cursorrules` only | Migrate to `.mdc` + skills |
-| Expect `agent-skills/agents/*.md` to auto-load | Paste in chat, or distill a short rule |
+| Expect `agent-skills/agents/*.md` to auto-load | Install them into `.cursor/agents/` or `~/.cursor/agents/` |
 
 ---
 
@@ -188,11 +195,14 @@ Full tree: `skills/using-agent-skills/SKILL.md` in the repo.
 
 ## `agents/` directory
 
-Files under `agent-skills/agents/` (e.g. code reviewer persona) are **not** loaded automatically by Cursor. Options:
+Files under `agent-skills/agents/` (e.g. code reviewer persona) can be installed
+as native Cursor subagents under `.cursor/agents/` or `~/.cursor/agents/`:
 
-- Reference the skill equivalent (`code-review-and-quality`).
-- Paste agent markdown into the chat for one review.
-- Extract a **short** checklist into a `.mdc` rule.
+- Project install: `node scripts/install-agent-standard.js --host cursor --profile decameron --project`
+- Global install: `node scripts/install-agent-standard.js --host cursor --profile decameron --global`
+- Cursor Commands are installed only in project scope. The official docs currently
+  do not document a `~/.cursor/commands/` directory, so the installer does not
+  create one.
 
 ---
 

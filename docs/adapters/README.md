@@ -8,7 +8,7 @@ fallbacks, and official documentation links, not duplicated Skill content.
 | --- | --- | --- | --- | --- | --- |
 | Claude | Native plugin | Native plugin | Native plugin | Adapter mapping | [Claude](claude.md) |
 | Codex | Native plugin or `.agents/skills` | Underlying Skill | `.codex/agents/*.toml` | Host/plugin mapping | [Codex](codex.md) |
-| Cursor | `.cursor/skills` | Rule/manual fallback | Rule/manual fallback | Host mapping | [Cursor](cursor.md) |
+| Cursor | `.cursor/skills` | `.cursor/commands` | `.cursor/agents` | Host mapping | [Cursor](cursor.md) |
 | OpenCode | `.opencode/skills` | `.opencode/commands` | `.opencode/agents` (`mode: subagent`) | `opencode.json` | [OpenCode](opencode.md) |
 | Gemini | `.gemini/skills` | `.gemini/commands` | `.gemini/agents` | Host settings | [Gemini](gemini.md) |
 | OpenChamber | Settings or OpenCode | `.opencode/commands` | `.opencode/agents` (`mode: subagent`) | Settings → MCP | [OpenChamber](openchamber.md) |

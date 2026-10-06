@@ -94,6 +94,49 @@ test('installs commands using each host native representation', () => {
   }
 });
 
+test('installs Cursor native commands with the canonical plan alias', () => {
+  const root = makeSandbox();
+  const result = run(root, '--host', 'cursor', '--profile', 'default', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const filenames = ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md'];
+  assert.deepEqual(fs.readdirSync(path.join(root, '.cursor', 'commands')).sort(), filenames.sort());
+  assert.match(readInstalled(root, path.join('.cursor', 'commands', 'plan.md')), /description:/);
+  assert.match(readInstalled(root, path.join('.cursor', 'commands', 'plan.md')), /Invoke the planning-and-task-breakdown skill/);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'commands', 'planning.md')), false);
+});
+
+test('installs Cursor native subagents without OpenCode metadata', () => {
+  const root = makeSandbox();
+  const result = run(root, '--host', 'cursor', '--profile', 'default', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  for (const id of ['code-reviewer', 'security-auditor', 'test-engineer', 'web-performance-auditor']) {
+    const installed = readInstalled(root, path.join('.cursor', 'agents', `${id}.md`));
+    const canonical = fs.readFileSync(path.join(ROOT, 'agents', `${id}.md`), 'utf8');
+    assert.equal(installed, canonical);
+    assert.doesNotMatch(installed, /^mode: subagent$/m);
+  }
+});
+
+test('protects and uninstalls Cursor native commands across lifecycle', () => {
+  const root = makeSandbox();
+  const first = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  const second = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+
+  const target = path.join(root, '.cursor', 'commands', 'plan.md');
+  const original = fs.readFileSync(target);
+  fs.appendFileSync(target, '\nlocal modification\n');
+  const conflict = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(conflict.status, 1);
+  assert.match(conflict.stderr, /refusing to overwrite existing files/);
+
+  fs.writeFileSync(target, original);
+  const uninstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
+});
+
 test('preserves upstream Claude and Gemini command implementations', () => {
   const nativeCommands = [
     { host: 'claude', directory: '.claude/commands', extension: '.md', planName: 'plan' },
@@ -151,7 +194,8 @@ test('installs Codex custom agents using the documented TOML surface', () => {
   const content = readInstalled(root, path.join('.codex', 'agents', 'code-reviewer.toml'));
   assert.match(content, /^name = "code-reviewer"$/m);
   assert.match(content, /^description = ".+"$/m);
-  assert.match(content, /^developer_instructions = """$/m);
+  assert.match(content, /^developer_instructions = "/m);
+  assert.match(content, /developer_instructions = .*Review Framework/);
   assert.equal(fs.existsSync(path.join(root, '.agents', 'agents')), false);
 });
 
@@ -179,6 +223,15 @@ test('uses isolated project and global destinations without touching the real ho
   }
 });
 
+test('installs Cursor agents in isolated global scope', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  const result = run(root, '--host', 'cursor', '--profile', 'default', '--global', { env: { HOME: home } });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.existsSync(path.join(home, '.cursor', 'agents', 'code-reviewer.md')), true);
+  assert.equal(fs.existsSync(path.join(home, '.cursor', 'commands')), false);
+});
+
 test('default profile installs all selected assets or documented fallbacks per host', () => {
   const profile = JSON.parse(fs.readFileSync(path.join(ROOT, 'profiles', 'default.json'), 'utf8'));
   assert.equal(profile.skills.length, 25);
@@ -195,7 +248,7 @@ test('default profile installs all selected assets or documented fallbacks per h
 });
 
 test('does not invent command files for hosts without native command support', () => {
-  for (const host of ['codex', 'cursor']) {
+  for (const host of ['codex']) {
     const root = makeSandbox();
     const result = run(root, '--host', host, '--profile', 'decameron', '--project');
     assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);

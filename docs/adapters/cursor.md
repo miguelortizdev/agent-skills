@@ -8,10 +8,18 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
   --host cursor --profile decameron --project --dry-run
 ```
 
-The adapter installs Skills under `.cursor/skills/`. The installer intentionally
-does not create `.cursor/commands/`; Commands and Agents use a documented
-manual or rule fallback because they are not equivalent to Cursor Skills. MCP
-remains configured through Cursor's native settings.
+The adapter installs Skills under `.cursor/skills/`, Commands as Markdown under
+`.cursor/commands/`, and specialist Agents under `.cursor/agents/`. Commands use
+the canonical Markdown representation and preserve the `planning` → `plan`
+filename alias. Agents are copied without host metadata because Cursor's native
+subagent files do not require OpenCode's `mode: subagent` field.
 
-Official documentation: [Cursor Skills](https://docs.cursor.com/context/skills)
-and [Cursor Rules](https://docs.cursor.com/context/rules).
+Global installs place Skills and Agents under `~/.cursor/{skills,agents}`. The
+installer does not create `~/.cursor/commands/` because the current official
+documentation confirms project Commands but does not document a global Commands
+directory. MCP remains configured through Cursor's native settings.
+
+Official documentation: [Cursor Skills](https://docs.cursor.com/context/skills),
+[Cursor Commands](https://docs.cursor.com/context/commands),
+[Cursor Subagents](https://docs.cursor.com/context/subagents), and
+[Cursor Rules](https://docs.cursor.com/context/rules).
