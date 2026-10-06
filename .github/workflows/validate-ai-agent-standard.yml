@@ -1,0 +1,43 @@
+name: Validate AI Agent Standard
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  structural:
+    name: Structural AI asset validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Validate canonical assets
+        run: >-
+          node scripts/validate-skills.js &&
+          node scripts/validate-commands.js &&
+          node scripts/validate-reference-links.js &&
+          node scripts/validate-artifact-paths.js &&
+          node scripts/validate-versions.js
+
+      - name: Validate standard metadata
+        run: >-
+          node scripts/validate-registry.js &&
+          node scripts/validate-profiles.js &&
+          node scripts/validate-mcp.js &&
+          node scripts/validate-upstream-parity.js
+
+      - name: Test standard metadata validators
+        run: >-
+          node --test
+          scripts/validate-registry-test.js
+          scripts/validate-profiles-test.js
+          scripts/validate-mcp-test.js
+          scripts/validate-upstream-parity-test.js
