@@ -41,13 +41,13 @@ afterEach(() => {
 test('accepts provider-neutral environment references', () => {
   const result = run(makeSandbox());
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /MCP registry valid: 1 servers/);
+  assert.match(result.stdout, /MCP registry valid: 2 servers/);
 });
 
 test('rejects inline environment values', () => {
   const root = makeSandbox();
   const { file, data } = registry(root);
-  data.servers[0].environment[0].value = 'secret-value';
+  data.servers[0].env.KUBECONFIG.value = 'secret-value';
   fs.writeFileSync(file, JSON.stringify(data));
   const result = run(root);
   assert.equal(result.status, 1);
@@ -62,4 +62,67 @@ test('rejects duplicate server IDs', () => {
   const result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /duplicate MCP server id/);
+});
+
+test('rejects unknown transports and invalid URLs', () => {
+  const root = makeSandbox();
+  const { file, data } = registry(root);
+  data.servers[0].transport = 'websocket';
+  fs.writeFileSync(file, JSON.stringify(data));
+  let result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /unknown MCP transport/);
+
+  data.servers[0].transport = 'http';
+  data.servers[0].url = 'not-a-url';
+  fs.writeFileSync(file, JSON.stringify(data));
+  result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /requires an http/);
+});
+
+test('rejects plaintext secrets and invalid environment references', () => {
+  const root = makeSandbox();
+  const { file, data } = registry(root);
+  data.servers[0].env.KUBECONFIG = { source: 'literal', value: 'secret' };
+  fs.writeFileSync(file, JSON.stringify(data));
+  let result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /invalid MCP environment reference/);
+
+  data.servers[0].env.KUBECONFIG = { source: 'environment', name: 'API_TOKEN' };
+  fs.writeFileSync(file, JSON.stringify(data));
+  result = run(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test('accepts HTTP servers with environment-backed header prefixes', () => {
+  const root = makeSandbox();
+  const { file, data } = registry(root);
+  data.servers.push({
+    name: 'Remote service',
+    id: 'remote-service',
+    transport: 'http',
+    url: 'https://example.com/mcp',
+    env: {},
+    headers: {
+      Authorization: { source: 'environment', name: 'MCP_TOKEN', prefix: 'Bearer ' },
+    },
+  });
+  fs.writeFileSync(file, JSON.stringify(data));
+  const result = run(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test('rejects HTTP headers with literal values', () => {
+  const root = makeSandbox();
+  const { file, data } = registry(root);
+  data.servers.push({
+    name: 'Remote service', id: 'remote-service', transport: 'http', url: 'https://example.com/mcp', env: {},
+    headers: { Authorization: 'Bearer real-secret-value' },
+  });
+  fs.writeFileSync(file, JSON.stringify(data));
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /invalid MCP header reference/);
 });

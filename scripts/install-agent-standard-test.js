@@ -64,6 +64,9 @@ test('dry-run reports actions without writing files', () => {
   const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--dry-run');
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /would copy/);
+  assert.match(result.stdout, /would merge MCP/);
+  assert.match(result.stdout, /context7/);
+  assert.doesNotMatch(result.stdout, /secret|token-value|abc123/i);
   assert.match(result.stdout, /No files changed/);
   assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
 });
@@ -283,6 +286,116 @@ test('keeps OpenCode and OpenChamber shared files alive until both owners uninst
   const secondUninstall = run(root, '--host', 'openchamber', '--profile', 'default', '--project', '--uninstall');
   assert.equal(secondUninstall.status, 0, secondUninstall.stdout + secondUninstall.stderr);
   assert.equal(fs.existsSync(path.join(root, '.opencode')), false);
+});
+
+test('uses OpenCode V2 MCP servers and shared OpenChamber ownership', () => {
+  const root = makeSandbox();
+  for (const host of ['opencode', 'openchamber']) {
+    const result = run(root, '--host', host, '--profile', 'decameron', '--project');
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+  }
+  const configPath = path.join(root, 'opencode.json');
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  assert.deepEqual(Object.keys(config.mcp), ['servers']);
+  assert.deepEqual(Object.keys(config.mcp.servers).sort(), ['context7', 'kubernetes']);
+  assert.deepEqual(config.mcp.servers.context7, {
+    type: 'local',
+    command: ['npx', '-y', '@upstash/context7-mcp'],
+  });
+  assert.equal(config.mcp.servers.kubernetes.enabled, undefined);
+  assert.equal(config.mcp.servers.kubernetes.disabled, undefined);
+
+  const firstUninstall = run(root, '--host', 'opencode', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(firstUninstall.status, 0, firstUninstall.stdout + firstUninstall.stderr);
+  assert.equal(fs.existsSync(configPath), true);
+  assert.match(fs.readFileSync(configPath, 'utf8'), /"servers"/);
+  const secondUninstall = run(root, '--host', 'openchamber', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(secondUninstall.status, 0, secondUninstall.stdout + secondUninstall.stderr);
+  assert.equal(fs.existsSync(configPath), false);
+});
+
+test('merges Codex MCP around unrelated TOML and cleans installer-owned config', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const configPath = path.join(root, '.codex', 'config.toml');
+  fs.appendFileSync(configPath, '\n[features]\nsome_setting = true\n');
+  const reinstall = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(reinstall.status, 0, reinstall.stdout + reinstall.stderr);
+  const merged = fs.readFileSync(configPath, 'utf8');
+  assert.match(merged, /\[mcp_servers\.context7\]/);
+  assert.match(merged, /\[features\]\nsome_setting = true/);
+  const uninstall = run(root, '--host', 'codex', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.match(fs.readFileSync(configPath, 'utf8'), /\[features\]\nsome_setting = true/);
+
+  const cleanRoot = makeSandbox();
+  const cleanInstall = run(cleanRoot, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(cleanInstall.status, 0, cleanInstall.stdout + cleanInstall.stderr);
+  const cleanUninstall = run(cleanRoot, '--host', 'codex', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(cleanUninstall.status, 0, cleanUninstall.stdout + cleanUninstall.stderr);
+  assert.equal(fs.existsSync(path.join(cleanRoot, '.codex', 'config.toml')), false);
+
+  const userRoot = makeSandbox();
+  const userConfig = path.join(userRoot, '.codex', 'config.toml');
+  fs.mkdirSync(path.dirname(userConfig), { recursive: true });
+  fs.writeFileSync(userConfig, '[features]\nsome_setting = true\n');
+  const userInstall = run(userRoot, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(userInstall.status, 0, userInstall.stdout + userInstall.stderr);
+  const userUninstall = run(userRoot, '--host', 'codex', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(userUninstall.status, 0, userUninstall.stdout + userUninstall.stderr);
+  assert.equal(fs.readFileSync(userConfig, 'utf8'), '[features]\nsome_setting = true\n');
+
+  const malformedRoot = makeSandbox();
+  const malformedConfig = path.join(malformedRoot, '.codex', 'config.toml');
+  fs.mkdirSync(path.dirname(malformedConfig), { recursive: true });
+  fs.writeFileSync(malformedConfig, '{not toml\n');
+  const original = fs.readFileSync(malformedConfig);
+  const malformedInstall = run(malformedRoot, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(malformedInstall.status, 1);
+  assert.deepEqual(fs.readFileSync(malformedConfig), original);
+});
+
+test('writes MCP configuration in each host native representation', () => {
+  const cases = [
+    ['claude', '.mcp.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
+    ['cursor', '.cursor/mcp.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
+    ['gemini', '.gemini/settings.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
+    ['opencode', 'opencode.json', (content) => assert.deepEqual(JSON.parse(content).mcp.servers.context7.command, ['npx', '-y', '@upstash/context7-mcp'])],
+    ['openchamber', 'opencode.json', (content) => assert.deepEqual(JSON.parse(content).mcp.servers.context7.command, ['npx', '-y', '@upstash/context7-mcp'])],
+  ];
+  for (const [host, relative, verify] of cases) {
+    const root = makeSandbox();
+    const result = run(root, '--host', host, '--profile', 'decameron', '--project');
+    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
+    verify(readInstalled(root, relative));
+  }
+});
+
+test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', () => {
+  const root = makeSandbox();
+  const configPath = path.join(root, '.cursor', 'mcp.json');
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify({ mcpServers: {
+    context7: { command: 'npx', args: ['-y', '@upstash/context7-mcp'], type: 'stdio' },
+  } }, null, 2) + '\n');
+  const identical = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(identical.status, 0, identical.stdout + identical.stderr);
+  fs.writeFileSync(configPath, JSON.stringify({ mcpServers: {
+    context7: { command: 'other', args: [], type: 'stdio' },
+  } }, null, 2) + '\n');
+  const conflict = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(conflict.status, 1);
+  assert.match(conflict.stderr, /MCP 'context7' already exists/);
+
+  const malformedRoot = makeSandbox();
+  const malformedPath = path.join(malformedRoot, '.cursor', 'mcp.json');
+  fs.mkdirSync(path.dirname(malformedPath), { recursive: true });
+  fs.writeFileSync(malformedPath, '{not json\n');
+  const original = fs.readFileSync(malformedPath);
+  const malformed = run(malformedRoot, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(malformed.status, 1);
+  assert.deepEqual(fs.readFileSync(malformedPath), original);
 });
 
 test('resolves Decameron command dependencies during installation', () => {
