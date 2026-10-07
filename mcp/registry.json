@@ -1,13 +1,23 @@
 {
-  "version": 1,
+  "schemaVersion": 1,
   "servers": [
     {
+      "name": "Kubernetes",
       "id": "kubernetes",
+      "transport": "stdio",
       "command": "kubernetes-mcp-server",
       "args": [],
-      "environment": [
-        {"name": "KUBECONFIG", "valueFrom": "environment", "required": false}
-      ]
+      "env": {
+        "KUBECONFIG": {"source": "environment", "name": "KUBECONFIG", "required": false}
+      }
+    },
+    {
+      "name": "Context7",
+      "id": "context7",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
     }
   ]
 }

@@ -46,6 +46,13 @@
     "format": "markdown",
     "addMode": "subagent"
   },
-  "mcpStrategy": "documented-fallback",
+  "mcpStrategy": "native-merge",
+  "mcpConfig": {
+    "format": "opencode-json",
+    "projectPath": "opencode.json",
+    "globalPath": ".config/opencode/opencode.json",
+    "rootKey": "mcp",
+    "nestedRootKey": "servers"
+  },
   "progressiveDisclosure": "Skills are loaded on demand by the native skill tool."
 }

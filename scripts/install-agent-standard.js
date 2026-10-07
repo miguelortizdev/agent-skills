@@ -11,7 +11,9 @@ const ROOT = path.resolve(__dirname, '..');
 const CATALOG_FILE = path.join(ROOT, 'registry', 'catalog.json');
 const PROFILE_DIR = path.join(ROOT, 'profiles');
 const HOST_DIR = path.join(ROOT, 'registry', 'hosts.json');
+const MCP_FILE = path.join(ROOT, 'mcp', 'registry.json');
 const TYPE_FIELDS = { skill: 'skills', command: 'commands', agent: 'agents', reference: 'references' };
+const mcp = require('./lib/mcp');
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -186,6 +188,7 @@ function writeManifest(file, manifest) {
 
 function buildPlan(options) {
   const catalog = readJson(CATALOG_FILE);
+  const mcpRegistry = readJson(MCP_FILE);
   const profile = readJson(path.join(PROFILE_DIR, `${options.profile}.json`));
   if (profile.name !== options.profile) throw new Error(`profile filename does not match name: ${options.profile}`);
   const hosts = readJson(HOST_DIR).hosts;
@@ -201,6 +204,7 @@ function buildPlan(options) {
     throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
   }
   const actions = [];
+  const mcpActions = [];
   const skipped = [];
 
   const selectedProfile = { ...profile };
@@ -255,9 +259,34 @@ function buildPlan(options) {
       }
     }
   }
-  if ((profile.mcp || []).length) skipped.push(`mcp: no safe native translation configured for ${host.id}; configure through the host UI or config`);
+  if ((profile.mcp || []).length) {
+    if (!adapter.mcpConfig) throw new Error(`host ${host.id} has no MCP configuration adapter`);
+    const representation = adapter.mcpConfig;
+    const relativePath = options.global ? representation.globalPath : representation.projectPath;
+    const target = safePath(installRoot, relativePath);
+    const configCreated = !fs.existsSync(target);
+    const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+    const servers = mcp.resolveMcpServers(profile.mcp, mcpRegistry);
+    let merged;
+    if (representation.format === 'toml') {
+      merged = mcp.mergeCodexConfig(existing, relativePath, servers);
+    } else {
+      const render = representation.format === 'opencode-json'
+        ? mcp.renderOpenCodeServer
+        : (server) => mcp.renderJsonServer(server, representation);
+      merged = mcp.mergeJsonConfig(existing, relativePath, servers, { ...representation, render });
+    }
+    const previousMcp = new Map((existingManifest?.mcp || [])
+      .filter((entry) => entry.path === relativePath)
+      .map((entry) => [entry.id, entry]));
+    merged.entries = merged.entries.map((entry) => {
+      const previous = previousMcp.get(entry.id);
+      return previous && previous.created ? { ...entry, created: true, configCreated: previous.configCreated } : entry;
+    });
+    mcpActions.push({ target, relativePath, format: representation.format, rootKey: representation.rootKey, nestedRootKey: representation.nestedRootKey, configCreated, content: merged.content, changed: merged.changed, entries: merged.entries });
+  }
   const uniqueActions = [...new Map(actions.map((action) => [action.target, action])).values()];
-  return { options, host, profile: selectedProfile, installRoot, actions: uniqueActions, skipped, installationManifest, existingManifest };
+  return { options, host, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, skipped, installationManifest, existingManifest };
 }
 
 function executeInstall(plan) {
@@ -271,6 +300,10 @@ function executeInstall(plan) {
       if (sourceContent.equals(fs.readFileSync(action.target))) continue;
       conflicts.push(action.target);
     }
+  }
+  for (const action of plan.mcpActions) {
+    assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
+    if (action.changed && fs.existsSync(action.target) && fs.lstatSync(action.target).isSymbolicLink()) throw new Error(`refusing to write through symlink: ${action.target}`);
   }
   if (conflicts.length) throw new Error(`refusing to overwrite existing files:\n${conflicts.join('\n')}`);
   const files = [];
@@ -288,8 +321,16 @@ function executeInstall(plan) {
       created: previousFiles.has(relative) ? previousFiles.get(relative).created : !existed,
     });
   }
+  const mcpRecords = [];
+  for (const action of plan.mcpActions) {
+    if (action.changed) {
+      fs.mkdirSync(path.dirname(action.target), { recursive: true });
+      fs.writeFileSync(action.target, action.content, { flag: fs.existsSync(action.target) ? 'w' : 'wx' });
+    }
+    for (const entry of action.entries) mcpRecords.push({ path: action.relativePath, format: action.format, rootKey: action.rootKey, nestedRootKey: action.nestedRootKey, configCreated: action.configCreated, ...entry });
+  }
   assertNoSymlinkPath(plan.installRoot, path.dirname(plan.installationManifest));
-  writeManifest(plan.installationManifest, { version: 1, host: plan.host.id, profile: plan.profile.name, scope: plan.options.global ? 'global' : 'project', files });
+  writeManifest(plan.installationManifest, { version: 1, host: plan.host.id, profile: plan.profile.name, scope: plan.options.global ? 'global' : 'project', files, mcp: mcpRecords });
 }
 
 function removeEmptyParents(start, stop) {
@@ -329,10 +370,77 @@ function executeUninstall(plan) {
       removable.push(target);
     }
   }
+  const mcpModified = [];
+  const mcpChanges = new Map();
+  const mcpDeleteCandidates = new Set();
+  const mcpFormats = new Map();
+  const mcpRepresentations = new Map();
+  const mcpRemovalGroups = new Map();
+  const otherMcp = new Map();
+  for (const owner of otherManifests) for (const entry of owner.manifest.mcp || []) {
+    const key = `${entry.path}\0${entry.id}`;
+    if (!otherMcp.has(key)) otherMcp.set(key, []);
+    otherMcp.get(key).push({ owner, entry });
+  }
+  for (const entry of plan.existingManifest.mcp || []) {
+    if (!entry.created) continue;
+    const target = safePath(plan.installRoot, entry.path);
+    if (!fs.existsSync(target)) continue;
+    const owners = otherMcp.get(`${entry.path}\0${entry.id}`) || [];
+    if (owners.length) {
+      const successor = owners[0];
+      successor.entry.created = true;
+      if (entry.configCreated) successor.entry.configCreated = true;
+      writeManifest(successor.owner.file, successor.owner.manifest);
+      continue;
+    }
+    if (!mcpRemovalGroups.has(target)) mcpRemovalGroups.set(target, []);
+    mcpRemovalGroups.get(target).push(entry);
+  }
+  for (const [target, entries] of mcpRemovalGroups) {
+    const content = fs.readFileSync(target, 'utf8');
+    const first = entries[0];
+    const result = first.format === 'toml'
+      ? mcp.removeCodexEntries(content, entries)
+      : mcp.removeJsonEntries(content, path.relative(plan.installRoot, target), entries, { rootKey: first.rootKey || 'mcpServers', nestedRootKey: first.nestedRootKey });
+    if (result.modified.length) mcpModified.push(...result.modified.map((id) => `${path.relative(plan.installRoot, target)}:${id}`));
+    else if (result.changed) {
+      mcpChanges.set(target, result.content);
+      if (entries.some((entry) => entry.configCreated)) {
+        mcpDeleteCandidates.add(target);
+        mcpFormats.set(target, first.format);
+        mcpRepresentations.set(target, first);
+      }
+    }
+  }
+  if (mcpModified.length) modified.push(...mcpModified.map((entry) => path.join(plan.installRoot, entry)));
   if (modified.length) throw new Error(`refusing to uninstall modified files:\n${modified.join('\n')}`);
   for (const target of removable) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
+  for (const [target, content] of mcpChanges) fs.writeFileSync(target, content);
+  for (const target of mcpDeleteCandidates) {
+    if (!fs.existsSync(target)) continue;
+    if (mcpFormats.get(target) === 'toml' && fs.readFileSync(target, 'utf8').trim() === '') {
+      fs.unlinkSync(target);
+      removeEmptyParents(path.dirname(target), plan.installRoot);
+      continue;
+    }
+    try {
+      const config = JSON.parse(fs.readFileSync(target, 'utf8'));
+      const rootKey = Object.keys(config).find((key) => key === 'mcpServers' || key === 'mcp');
+      const representation = mcpRepresentations.get(target);
+      const root = rootKey ? config[rootKey] : undefined;
+      const emptyRoot = representation?.nestedRootKey
+        ? root && Object.keys(root).every((key) => key === representation.nestedRootKey)
+          && Object.keys(root[representation.nestedRootKey] || {}).length === 0
+        : root && Object.keys(root).length === 0;
+      if (rootKey && emptyRoot && Object.keys(config).every((key) => key === rootKey)) {
+        fs.unlinkSync(target);
+        removeEmptyParents(path.dirname(target), plan.installRoot);
+      }
+    } catch {}
   }
   fs.unlinkSync(plan.installationManifest);
   removeEmptyParents(path.dirname(plan.installationManifest), plan.installRoot);
@@ -346,7 +454,7 @@ function uninstallPlan(options) {
   if (existingManifest.host !== options.host || existingManifest.profile !== options.profile || existingManifest.scope !== (options.global ? 'global' : 'project')) {
     throw new Error(`installation manifest belongs to ${existingManifest.host}/${existingManifest.profile}, not ${options.host}/${options.profile}`);
   }
-  return { options, host: { id: existingManifest.host, displayName: existingManifest.host }, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], skipped: [] };
+  return { options, host: { id: existingManifest.host, displayName: existingManifest.host }, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], mcpActions: [], skipped: [] };
 }
 
 function execute(plan) {
@@ -363,6 +471,7 @@ function main() {
     for (const entry of plan.existingManifest.files || []) console.log(`${plan.options.dryRun ? '  would remove' : '  remove'} ${entry.path}`);
   } else {
     for (const action of plan.actions) console.log(`${plan.options.dryRun ? '  would copy' : '  copy'} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
+    for (const action of plan.mcpActions) console.log(`${plan.options.dryRun ? '  would merge MCP' : '  merge MCP'} ${path.relative(plan.installRoot, action.target)}: ${action.entries.map((entry) => entry.id).join(', ')}`);
     console.log(`${plan.options.dryRun ? '  would write' : '  write'} ${path.relative(plan.installRoot, plan.installationManifest)}`);
   }
   for (const skipped of plan.skipped) console.log(`  skip ${skipped}`);
