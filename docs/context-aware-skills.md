@@ -64,11 +64,11 @@ not claim ownership of global Skills, Commands, Agents, References, or MCP.
 1. Create a standard `skills/<name>/SKILL.md` with the normal Skill anatomy.
 2. Register it as a custom `skill` with `contextual: true` in `registry/catalog.json`.
 3. Declare `appliesWhen` using the generic rule DSL below.
-4. Add detector/resolver fixtures for positive, negative, and multi-stack cases.
+4. Add contextual rule tests/fixtures for positive, negative, and multi-stack cases.
 5. Run registry, Skill, installer, and full-suite validation.
 
-No adapter changes are required. Do not add technology-specific logic to the
-detector, resolver, or installer; they consume generic facts and resolved
+No Context Detector, Context Resolver, installer, or adapter changes are
+required for a new technology. They consume generic facts and resolved
 canonical asset IDs.
 
 ## Rule DSL
@@ -78,7 +78,7 @@ Rules are JSON objects in `registry/catalog.json`. Leaf rules may use:
 | Rule | Purpose | Example |
 | --- | --- | --- |
 | `file` | Match one or more bounded paths | `{ "type": "file", "paths": ["next.config.ts"] }` |
-| `path` | Match a path pattern | `{ "type": "path", "patterns": ["services/*/package.json"] }` |
+| `path` | Match a file or directory path | `{ "type": "path", "match": "suffix", "paths": ["services/api"] }` |
 | `dependency` | Match dependency names in manifest files | `{ "type": "dependency", "names": ["next"] }` |
 | `text` | Match text patterns in bounded files | `{ "type": "text", "files": ["platform.yaml"], "patterns": ["route.openshift.io/"] }` |
 
@@ -99,8 +99,9 @@ Compose rules with `anyOf`, `allOf`, and `noneOf`:
 }
 ```
 
-Add a new contextual Skill by changing the Registry and adding fixtures. Core
-scanner and resolver code must not change for a new technology.
+Adding a new contextual Skill is: create `SKILL.md`, register the asset,
+configure `appliesWhen`, add tests/evals, and finish. Core scanner, resolver,
+installer, and adapter code must not change for a new technology.
 
 ## Troubleshooting
 

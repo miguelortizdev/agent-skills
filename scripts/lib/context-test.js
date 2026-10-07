@@ -186,6 +186,18 @@ test('does not read secret files or oversized files', () => {
   assert.equal(context.texts.some((text) => text.file === 'large.txt'), false);
 });
 
+test('resolves a Registry path rule and rejects an absent path', () => {
+  const present = project({ 'infrastructure/special-platform/.keep': '' });
+  const absent = project({ 'infrastructure/other-platform/.keep': '' });
+  const pathRegistry = { assets: [
+    { id: 'special-platform-path-fixture', type: 'skill', contextual: true, appliesWhen: { type: 'path', match: 'suffix', paths: ['infrastructure/special-platform'] } },
+  ] };
+  const ids = (root) => resolveContextualSkills(detectProjectContext(root), pathRegistry).map((entry) => entry.id);
+
+  assert.deepEqual(ids(present), ['special-platform-path-fixture']);
+  assert.deepEqual(ids(absent), []);
+});
+
 test('evaluates generic path and logical composition rules', () => {
   const root = project({
     'platform.yaml': 'kind: FuturePlatform\n',
