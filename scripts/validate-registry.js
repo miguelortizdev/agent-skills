@@ -28,6 +28,30 @@ function resolveRepositoryPath(relativePath) {
   return resolved;
 }
 
+function validateContextRules(asset) {
+  if (asset.contextual === undefined && asset.appliesWhen === undefined) return;
+  if (asset.type !== 'skill' || asset.contextual !== true) throw new Error(`contextual metadata requires contextual skill: ${asset.id}`);
+  if (asset.tags !== undefined && (!Array.isArray(asset.tags) || asset.tags.some((tag) => typeof tag !== 'string' || !tag))) throw new Error(`invalid contextual tags for ${asset.id}`);
+  const rules = asset.appliesWhen && asset.appliesWhen.any;
+  if (!Array.isArray(rules) || rules.length === 0) throw new Error(`contextual skill requires non-empty appliesWhen.any: ${asset.id}`);
+  for (const rule of rules) {
+    if (!['dependency', 'file', 'text'].includes(rule.type)) throw new Error(`unknown contextual matcher type for ${asset.id}: ${rule.type}`);
+    if (rule.type === 'dependency') {
+      if (!Array.isArray(rule.names) || rule.names.length === 0 || rule.names.some((name) => typeof name !== 'string' || !name)) throw new Error(`invalid dependency matcher for ${asset.id}`);
+      if (rule.file !== undefined) { if (path.isAbsolute(rule.file) || rule.file.includes('..')) throw new Error(`invalid contextual matcher path for ${asset.id}`); }
+    }
+    if (rule.type === 'file') {
+      if (!Array.isArray(rule.paths) || rule.paths.length === 0) throw new Error(`invalid file matcher for ${asset.id}`);
+      for (const file of rule.paths) if (typeof file !== 'string' || path.isAbsolute(file) || file.includes('..') || file.includes('*')) throw new Error(`invalid contextual file matcher for ${asset.id}`);
+    }
+    if (rule.type === 'text') {
+      if (!Array.isArray(rule.files) || !Array.isArray(rule.patterns) || rule.files.length === 0 || rule.patterns.length === 0) throw new Error(`invalid text matcher for ${asset.id}`);
+      for (const file of rule.files) if (typeof file !== 'string' || path.isAbsolute(file) || file.includes('..')) throw new Error(`invalid contextual text path for ${asset.id}`);
+      for (const pattern of rule.patterns) if (typeof pattern !== 'string' || !pattern) throw new Error(`invalid contextual text pattern for ${asset.id}`);
+    }
+  }
+}
+
 function validateCatalog(catalog) {
   if (catalog.sourceOfTruth !== 'repository-root') throw new Error('catalog sourceOfTruth must be repository-root');
   if (!Array.isArray(catalog.assets) || catalog.assets.length === 0) throw new Error('catalog assets must be a non-empty array');
@@ -44,6 +68,7 @@ function validateCatalog(catalog) {
     if (!fs.existsSync(file)) throw new Error(`missing asset path for ${asset.id}: ${asset.path}`);
     if (asset.source !== 'upstream' && asset.source !== 'custom') throw new Error(`invalid source for ${asset.id}: ${asset.source}`);
     if (typeof asset.enabled !== 'boolean') throw new Error(`enabled must be boolean for ${asset.id}`);
+    validateContextRules(asset);
   }
   return ids;
 }

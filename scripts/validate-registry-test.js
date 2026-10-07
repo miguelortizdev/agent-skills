@@ -55,7 +55,7 @@ test('accepts a valid catalog and host registry', () => {
   const root = makeSandbox();
   const result = run(root);
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /Registry valid: 49 unique assets and 6 hosts/);
+  assert.match(result.stdout, /Registry valid: 53 unique assets and 6 hosts/);
 });
 
 test('rejects duplicate asset IDs', () => {
@@ -96,4 +96,31 @@ test('rejects unknown asset types', () => {
   const result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /unknown asset type/);
+});
+
+test('accepts declarative contextual skill matchers', () => {
+  const root = makeSandbox();
+  const { file, data } = catalog(root);
+  data.assets[0].contextual = true;
+  data.assets[0].appliesWhen = { any: [{ type: 'dependency', file: 'package.json', names: ['example'] }] };
+  fs.writeFileSync(file, JSON.stringify(data));
+  const result = run(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test('rejects unknown contextual matcher types and unsafe paths', () => {
+  const root = makeSandbox();
+  const { file, data } = catalog(root);
+  data.assets[0].contextual = true;
+  data.assets[0].appliesWhen = { any: [{ type: 'regex', paths: ['../outside'] }] };
+  fs.writeFileSync(file, JSON.stringify(data));
+  let result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /unknown contextual matcher type/);
+
+  data.assets[0].appliesWhen = { any: [{ type: 'file', paths: ['../outside'] }] };
+  fs.writeFileSync(file, JSON.stringify(data));
+  result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /invalid contextual file matcher/);
 });
