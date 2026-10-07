@@ -439,8 +439,10 @@ function executeInstall(plan) {
   });
   assertNoSymlinkPath(plan.installRoot, path.dirname(plan.installationManifest));
   const context = plan.detectedContext && {
-    frameworks: Object.keys(plan.detectedContext.frameworks),
-    platforms: Object.keys(plan.detectedContext.platforms),
+    files: plan.detectedContext.files.length,
+    directories: plan.detectedContext.directories.length,
+    dependencies: plan.detectedContext.dependencies.length,
+    textFiles: plan.detectedContext.texts.length,
   };
   writeManifest(plan.installationManifest, {
     version: 1,
@@ -598,7 +600,7 @@ function main() {
     console.log(`  reused globally: ${plan.options.profile} foundation (Base Skills, Commands, Agents, References, MCP)`);
   }
   if (!plan.options.uninstall && plan.detectedContext) {
-    console.log(`Detected project context: ${Object.keys(plan.detectedContext.frameworks).concat(Object.keys(plan.detectedContext.platforms)).join(', ') || 'none'}`);
+    console.log(`Detected project context: ${plan.contextualSkills.map((skill) => skill.id).join(', ') || 'none'}`);
     for (const skill of plan.contextualSkills) console.log(`  contextual skill: + ${skill.id} (${skill.evidence.join('; ')})`);
   }
   if (plan.options.uninstall) {

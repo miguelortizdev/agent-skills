@@ -28,29 +28,51 @@ function resolveRepositoryPath(relativePath) {
   return resolved;
 }
 
+function validateContextRule(rule, assetId, location = 'appliesWhen', depth = 0) {
+  if (!rule || typeof rule !== 'object' || Array.isArray(rule)) throw new Error(`invalid contextual rule for ${assetId} at ${location}`);
+  if (depth > 8) throw new Error(`contextual rule nesting is too deep for ${assetId} at ${location}`);
+
+  const logicalKeys = ['anyOf', 'allOf', 'noneOf'].filter((key) => Object.hasOwn(rule, key));
+  if (logicalKeys.length) {
+    for (const key of logicalKeys) {
+      if (!Array.isArray(rule[key]) || rule[key].length === 0) throw new Error(`${location}.${key} must contain at least one rule for ${assetId}`);
+      rule[key].forEach((child, index) => validateContextRule(child, assetId, `${location}.${key}[${index}]`, depth + 1));
+    }
+    for (const key of Object.keys(rule)) if (!logicalKeys.includes(key)) throw new Error(`unknown contextual rule property for ${assetId} at ${location}: ${key}`);
+    return;
+  }
+
+  if (!['dependency', 'file', 'path', 'text'].includes(rule.type)) throw new Error(`unknown contextual matcher type for ${assetId}: ${rule.type}`);
+  if (rule.match !== undefined && !['basename', 'relative', 'suffix'].includes(rule.match)) throw new Error(`invalid contextual matcher mode for ${assetId}: ${rule.match}`);
+  const allowed = {
+    dependency: ['type', 'match', 'file', 'names'],
+    file: ['type', 'match', 'paths'],
+    path: ['type', 'match', 'paths'],
+    text: ['type', 'match', 'files', 'patterns'],
+  }[rule.type];
+  for (const key of Object.keys(rule)) if (!allowed.includes(key)) throw new Error(`unknown contextual rule property for ${assetId} at ${location}: ${key}`);
+
+  if (rule.type === 'dependency') {
+    if (!Array.isArray(rule.names) || rule.names.length === 0 || rule.names.some((name) => typeof name !== 'string' || !name)) throw new Error(`invalid dependency matcher for ${assetId} at ${location}`);
+    if (rule.file !== undefined && (typeof rule.file !== 'string' || path.isAbsolute(rule.file) || rule.file.includes('..'))) throw new Error(`invalid contextual matcher path for ${assetId}`);
+  }
+  if (rule.type === 'file' || rule.type === 'path') {
+    if (!Array.isArray(rule.paths) || rule.paths.length === 0) throw new Error(`invalid ${rule.type} matcher for ${assetId} at ${location}`);
+    for (const file of rule.paths) if (typeof file !== 'string' || path.isAbsolute(file) || file.includes('..') || file.includes('*')) throw new Error(`invalid contextual ${rule.type} matcher for ${assetId}`);
+  }
+  if (rule.type === 'text') {
+    if (!Array.isArray(rule.files) || !Array.isArray(rule.patterns) || rule.files.length === 0 || rule.patterns.length === 0) throw new Error(`invalid text matcher for ${assetId} at ${location}`);
+    for (const file of rule.files) if (typeof file !== 'string' || path.isAbsolute(file) || file.includes('..') || file.includes('*')) throw new Error(`invalid contextual text path for ${assetId}`);
+    for (const pattern of rule.patterns) if (typeof pattern !== 'string' || !pattern) throw new Error(`invalid contextual text pattern for ${assetId}`);
+  }
+}
+
 function validateContextRules(asset) {
   if (asset.contextual === undefined && asset.appliesWhen === undefined) return;
   if (asset.type !== 'skill' || asset.contextual !== true) throw new Error(`contextual metadata requires contextual skill: ${asset.id}`);
   if (asset.tags !== undefined && (!Array.isArray(asset.tags) || asset.tags.some((tag) => typeof tag !== 'string' || !tag))) throw new Error(`invalid contextual tags for ${asset.id}`);
-  const rules = asset.appliesWhen && asset.appliesWhen.any;
-  if (!Array.isArray(rules) || rules.length === 0) throw new Error(`contextual skill requires non-empty appliesWhen.any: ${asset.id}`);
-  for (const rule of rules) {
-    if (!['dependency', 'file', 'text'].includes(rule.type)) throw new Error(`unknown contextual matcher type for ${asset.id}: ${rule.type}`);
-    if (rule.match !== undefined && !['basename', 'relative', 'suffix'].includes(rule.match)) throw new Error(`invalid contextual matcher mode for ${asset.id}: ${rule.match}`);
-    if (rule.type === 'dependency') {
-      if (!Array.isArray(rule.names) || rule.names.length === 0 || rule.names.some((name) => typeof name !== 'string' || !name)) throw new Error(`invalid dependency matcher for ${asset.id}`);
-      if (rule.file !== undefined) { if (path.isAbsolute(rule.file) || rule.file.includes('..')) throw new Error(`invalid contextual matcher path for ${asset.id}`); }
-    }
-    if (rule.type === 'file') {
-      if (!Array.isArray(rule.paths) || rule.paths.length === 0) throw new Error(`invalid file matcher for ${asset.id}`);
-      for (const file of rule.paths) if (typeof file !== 'string' || path.isAbsolute(file) || file.includes('..') || file.includes('*')) throw new Error(`invalid contextual file matcher for ${asset.id}`);
-    }
-    if (rule.type === 'text') {
-      if (!Array.isArray(rule.files) || !Array.isArray(rule.patterns) || rule.files.length === 0 || rule.patterns.length === 0) throw new Error(`invalid text matcher for ${asset.id}`);
-      for (const file of rule.files) if (typeof file !== 'string' || path.isAbsolute(file) || file.includes('..')) throw new Error(`invalid contextual text path for ${asset.id}`);
-      for (const pattern of rule.patterns) if (typeof pattern !== 'string' || !pattern) throw new Error(`invalid contextual text pattern for ${asset.id}`);
-    }
-  }
+  if (asset.appliesWhen === undefined) throw new Error(`contextual skill requires appliesWhen: ${asset.id}`);
+  validateContextRule(asset.appliesWhen, asset.id);
 }
 
 function validateCatalog(catalog) {
