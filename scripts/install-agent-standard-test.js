@@ -411,6 +411,71 @@ test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', (
   assert.deepEqual(fs.readFileSync(malformedPath), original);
 });
 
+test('adds contextual Skills with explainable evidence and reconciles removal', () => {
+  const root = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  fs.writeFileSync(path.join(root, 'next.config.ts'), 'export default {}\n');
+  const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  assert.match(install.stdout, /Detected project context: nextjs/);
+  assert.match(install.stdout, /nextjs-vercel-engineering/);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true);
+  let manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
+  assert.equal(manifest.contextualSkills.length, 1);
+  assert.match(manifest.contextualSkills[0].evidence.join('\n'), /package.json/);
+
+  fs.rmSync(path.join(root, 'package.json'));
+  fs.rmSync(path.join(root, 'next.config.ts'));
+  const reinstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(reinstall.status, 0, reinstall.stdout + reinstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering')), false);
+  manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
+  assert.deepEqual(manifest.contextualSkills, []);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'security-and-hardening', 'SKILL.md')), true);
+});
+
+test('contextual Skills augment each host project installation but not global installation', () => {
+  for (const host of ['claude', 'codex', 'cursor', 'gemini', 'opencode', 'openchamber']) {
+    const root = makeSandbox();
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+    const project = run(root, '--host', host, '--profile', 'decameron', '--project');
+    assert.equal(project.status, 0, `${host}: ${project.stdout}${project.stderr}`);
+    const destination = { claude: '.claude', codex: '.agents', cursor: '.cursor', gemini: '.gemini', opencode: '.opencode', openchamber: '.opencode' }[host];
+    assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true, host);
+
+    const globalRoot = makeSandbox();
+    fs.writeFileSync(path.join(globalRoot, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+    const home = makeSandbox();
+    const global = run(globalRoot, '--host', host, '--profile', 'decameron', '--global', { env: { HOME: home } });
+    assert.equal(global.status, 0, `${host} global: ${global.stdout}${global.stderr}`);
+    assert.equal(fs.existsSync(path.join(home, destination, 'skills', 'nextjs-vercel-engineering')), false, `${host} global context leaked`);
+  }
+});
+
+test('contextual dry-run explains evidence without writing and shared hosts preserve ownership', () => {
+  const root = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  const before = relativeFiles(root).sort();
+  const dry = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--dry-run');
+  assert.equal(dry.status, 0, dry.stdout + dry.stderr);
+  assert.match(dry.stdout, /Detected project context: nextjs/);
+  assert.match(dry.stdout, /package.json -> dependency "next"/);
+  assert.deepEqual(relativeFiles(root).sort(), before);
+
+  for (const host of ['opencode', 'openchamber']) {
+    const install = run(root, '--host', host, '--profile', 'decameron', '--project');
+    assert.equal(install.status, 0, `${host}: ${install.stdout}${install.stderr}`);
+  }
+  const skillFile = path.join(root, '.opencode', 'skills', 'nextjs-vercel-engineering', 'SKILL.md');
+  assert.equal(fs.existsSync(skillFile), true);
+  const first = run(root, '--host', 'opencode', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.equal(fs.existsSync(skillFile), true);
+  const second = run(root, '--host', 'openchamber', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  assert.equal(fs.existsSync(skillFile), false);
+});
+
 test('resolves Decameron command dependencies during installation', () => {
   const root = makeSandbox();
   const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');

@@ -1,0 +1,25 @@
+{
+  "skill_name": "laravel-engineering",
+  "trigger": {
+    "positive": [
+      {"prompt": "Review Laravel Form Requests, policies, and Eloquent transactions", "top_k": 1},
+      {"prompt": "Find the Laravel Eloquent N+1 query and fix its test", "top_k": 1},
+      {"prompt": "Harden a Laravel queue job and API resource", "top_k": 1}
+    ],
+    "negative": [
+      {"prompt": "Review a Spring Boot JPA transaction", "owner": "spring-boot-engineering"},
+      {"prompt": "Review an OpenShift DeploymentConfig rollout", "owner": "openshift-engineering"}
+    ]
+  },
+  "evals": [{
+    "id": 1,
+    "kind": "dialogue",
+    "prompt": "Review a Laravel controller that validates input, writes three models, and dispatches a job.",
+    "expected_output": "A version-aware Laravel review covering validation, authorization, transactions, query behavior, jobs, and tests",
+    "expectations": [
+      "Checks Laravel and PHP version constraints",
+      "Reviews validation, authorization, transactions, and Eloquent query count",
+      "Reviews queue failure behavior and test coverage"
+    ]
+  }]
+}

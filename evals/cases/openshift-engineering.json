@@ -1,0 +1,25 @@
+{
+  "skill_name": "openshift-engineering",
+  "trigger": {
+    "positive": [
+      {"prompt": "Review an OpenShift Route, DeploymentConfig, probes, and resource limits", "top_k": 1},
+      {"prompt": "Validate OpenShift securityContext, ServiceAccount, and rollout strategy", "top_k": 1},
+      {"prompt": "Analyze OpenShift HPA, availability, storage, and observability", "top_k": 1}
+    ],
+    "negative": [
+      {"prompt": "Review a generic Kubernetes Deployment and Service", "owner": "nextjs-vercel-engineering"},
+      {"prompt": "Review a Spring Boot readiness endpoint", "owner": "spring-boot-engineering"}
+    ]
+  },
+  "evals": [{
+    "id": 1,
+    "kind": "dialogue",
+    "prompt": "Review OpenShift manifests for a Route, workload probes, resource limits, and security context.",
+    "expected_output": "A validation-focused OpenShift review that distinguishes OpenShift markers and avoids destructive changes",
+    "expectations": [
+      "Checks OpenShift-specific API evidence rather than assuming generic Kubernetes is OpenShift",
+      "Reviews probes, resources, rollout, security, networking, and observability",
+      "Recommends validation or a patch plan without applying destructive infrastructure changes"
+    ]
+  }]
+}
