@@ -3,6 +3,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -32,6 +33,10 @@ function run(root, ...args) {
 
 function readInstalled(root, relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
+}
+
+function sha256(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
 function relativeFiles(root) {
@@ -411,72 +416,49 @@ test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', (
   assert.deepEqual(fs.readFileSync(malformedPath), original);
 });
 
-test('adds contextual Skills with explainable evidence and reconciles removal', () => {
+test('project installs report no contextual Skills when the production catalog is empty', () => {
   const root = makeSandbox();
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
   fs.writeFileSync(path.join(root, 'next.config.ts'), 'export default {}\n');
   const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(install.status, 0, install.stdout + install.stderr);
-  assert.match(install.stdout, /Detected project context: nextjs-vercel-engineering/);
-  assert.match(install.stdout, /nextjs-vercel-engineering/);
-  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true);
-  let manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
-  assert.equal(manifest.contextualSkills.length, 1);
-  assert.match(manifest.contextualSkills[0].evidence.join('\n'), /package.json/);
-
-  fs.rmSync(path.join(root, 'package.json'));
-  fs.rmSync(path.join(root, 'next.config.ts'));
-  const reinstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
-  assert.equal(reinstall.status, 0, reinstall.stdout + reinstall.stderr);
-  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering')), false);
-  manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
+  assert.match(install.stdout, /Detected project context: none/);
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
   assert.deepEqual(manifest.contextualSkills, []);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'security-and-hardening', 'SKILL.md')), true);
 });
 
-test('contextual Skills augment each host project installation but not global installation', () => {
+test('technology evidence does not affect project or global installations without registered contextual Skills', () => {
   for (const host of ['claude', 'codex', 'cursor', 'gemini', 'opencode', 'openchamber']) {
     const root = makeSandbox();
     fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
     const project = run(root, '--host', host, '--profile', 'decameron', '--project');
     assert.equal(project.status, 0, `${host}: ${project.stdout}${project.stderr}`);
-    const destination = { claude: '.claude', codex: '.agents', cursor: '.cursor', gemini: '.gemini', opencode: '.opencode', openchamber: '.opencode' }[host];
-    assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true, host);
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', `${host}.json`), 'utf8'));
+    assert.deepEqual(manifest.contextualSkills, [], host);
 
     const globalRoot = makeSandbox();
     fs.writeFileSync(path.join(globalRoot, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
     const home = makeSandbox();
     const global = run(globalRoot, '--host', host, '--profile', 'decameron', '--global', { env: { HOME: home } });
     assert.equal(global.status, 0, `${host} global: ${global.stdout}${global.stderr}`);
-    assert.equal(fs.existsSync(path.join(home, destination, 'skills', 'nextjs-vercel-engineering')), false, `${host} global context leaked`);
+    const globalManifest = JSON.parse(fs.readFileSync(path.join(home, '.agent-standard', 'installations', `${host}.json`), 'utf8'));
+    assert.deepEqual(globalManifest.contextualSkills, [], `${host} global context leaked`);
   }
 });
 
-test('contextual dry-run explains evidence without writing and shared hosts preserve ownership', () => {
+test('zero-context dry-run explains no registered contextual Skills without writing', () => {
   const root = makeSandbox();
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
   const before = relativeFiles(root).sort();
   const dry = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--dry-run');
   assert.equal(dry.status, 0, dry.stdout + dry.stderr);
-  assert.match(dry.stdout, /Detected project context: nextjs-vercel-engineering/);
-  assert.match(dry.stdout, /package.json -> dependency "next"/);
+  assert.match(dry.stdout, /Detected project context: none/);
   assert.deepEqual(relativeFiles(root).sort(), before);
-
-  for (const host of ['opencode', 'openchamber']) {
-    const install = run(root, '--host', host, '--profile', 'decameron', '--project');
-    assert.equal(install.status, 0, `${host}: ${install.stdout}${install.stderr}`);
-  }
-  const skillFile = path.join(root, '.opencode', 'skills', 'nextjs-vercel-engineering', 'SKILL.md');
-  assert.equal(fs.existsSync(skillFile), true);
-  const first = run(root, '--host', 'opencode', '--profile', 'decameron', '--project', '--uninstall');
-  assert.equal(first.status, 0, first.stdout + first.stderr);
-  assert.equal(fs.existsSync(skillFile), true);
-  const second = run(root, '--host', 'openchamber', '--profile', 'decameron', '--project', '--uninstall');
-  assert.equal(second.status, 0, second.stdout + second.stderr);
-  assert.equal(fs.existsSync(skillFile), false);
 });
 
-test('installs all contextual Skills from a nested multi-stack monorepo', () => {
+test('nested multi-stack projects install no contextual Skills without production registrations', () => {
   const root = makeSandbox();
   fs.mkdirSync(path.join(root, 'frontend'), { recursive: true });
   fs.mkdirSync(path.join(root, 'backend'), { recursive: true });
@@ -487,20 +469,13 @@ test('installs all contextual Skills from a nested multi-stack monorepo', () => 
   fs.writeFileSync(path.join(root, 'deploy', 'openshift', 'route.yaml'), 'apiVersion: route.openshift.io/v1\nkind: Route\n');
   const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /Detected project context: nextjs-vercel-engineering, spring-boot-engineering, openshift-engineering/);
-  for (const id of ['nextjs-vercel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
-    assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', id, 'SKILL.md')), true, id);
-  }
+  assert.match(result.stdout, /Detected project context: none/);
   const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
-  assert.deepEqual(manifest.contextualSkills.map((skill) => skill.id).sort(), [
-    'nextjs-vercel-engineering', 'openshift-engineering', 'spring-boot-engineering',
-  ]);
+  assert.deepEqual(manifest.contextualSkills, []);
   fs.rmSync(path.join(root, 'frontend'), { recursive: true, force: true });
   const partial = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(partial.status, 0, partial.stdout + partial.stderr);
-  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering')), false);
-  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'spring-boot-engineering', 'SKILL.md')), true);
-  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'openshift-engineering', 'SKILL.md')), true);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8')).contextualSkills, []);
 });
 
 test('resolves Decameron command dependencies during installation', () => {
@@ -706,19 +681,14 @@ test('installs a project overlay only after a matching global foundation exists'
   assert.equal(overlay.status, 0, overlay.stdout + overlay.stderr);
   assert.match(overlay.stdout, /Global foundation: available/);
   assert.match(overlay.stdout, /Project overlay/);
-  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true);
+  assert.match(overlay.stdout, /Detected project context: none/);
+  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'api-and-interface-design')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'commands')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'agents')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'mcp.json')), false);
 
-  const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
-  assert.equal(manifest.mode, 'overlay');
-  assert.equal(manifest.scope, 'project');
-  assert.equal(manifest.host, 'cursor');
-  assert.equal(manifest.profile, 'decameron');
-  assert.deepEqual(manifest.contextualSkills.map((skill) => skill.id), ['nextjs-vercel-engineering']);
-  assert.ok(manifest.files.every((file) => file.path.includes('nextjs-vercel-engineering')));
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
   assert.equal(fs.existsSync(path.join(home, '.cursor', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
 });
 
@@ -750,35 +720,35 @@ test('rejects overlay profile and host mismatches without writing project files'
   assert.equal(fs.existsSync(path.join(root, '.agents')), false);
 });
 
-test('reconciles overlay context, stays idempotent, and uninstalls only overlay files', () => {
+test('reconciles stale managed contextual Skills after production removal', () => {
   const root = makeSandbox();
   const home = makeSandbox();
-  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
   assert.equal(run(root, '--host', 'claude', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
 
-  const first = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
-  assert.equal(first.status, 0, first.stdout + first.stderr);
   const overlayFile = path.join(root, '.claude', 'skills', 'nextjs-vercel-engineering', 'SKILL.md');
-  const firstManifest = fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'claude.json'), 'utf8');
-  assert.equal(fs.existsSync(overlayFile), true);
+  fs.mkdirSync(path.dirname(overlayFile), { recursive: true });
+  fs.writeFileSync(overlayFile, 'legacy managed contextual Skill\n');
+  const userFile = path.join(root, '.claude', 'notes.txt');
+  fs.writeFileSync(userFile, 'user content\n');
+  const relativeFile = path.relative(root, overlayFile);
+  fs.mkdirSync(path.join(root, '.agent-standard', 'installations'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.agent-standard', 'installations', 'claude.json'), `${JSON.stringify({
+    version: 1,
+    host: 'claude',
+    profile: 'decameron',
+    scope: 'project',
+    mode: 'overlay',
+    foundation: { source: 'global', required: true },
+    files: [{ path: relativeFile, sha256: sha256(overlayFile), created: true }],
+    contextualSkills: [{ id: 'nextjs-vercel-engineering', evidence: ['legacy fixture'], files: [{ path: relativeFile, sha256: sha256(overlayFile), created: true }] }],
+    mcp: [],
+  }, null, 2)}\n`);
 
-  const second = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
-  assert.equal(second.status, 0, second.stdout + second.stderr);
-  assert.equal(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'claude.json'), 'utf8'), firstManifest);
-
-  fs.rmSync(path.join(root, 'package.json'));
-  const removed = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  const removed = run(root, 'sync', '--host', 'claude', '--profile', 'decameron', { env: { HOME: home } });
   assert.equal(removed.status, 0, removed.stdout + removed.stderr);
   assert.equal(fs.existsSync(overlayFile), false);
   assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
-  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
-
-  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
-  const reinstall = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
-  assert.equal(reinstall.status, 0, reinstall.stdout + reinstall.stderr);
-  const uninstall = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', '--uninstall', { env: { HOME: home } });
-  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
-  assert.equal(fs.existsSync(path.join(root, '.claude')), false);
+  assert.equal(fs.readFileSync(userFile, 'utf8'), 'user content\n');
   assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
 });
 
@@ -795,7 +765,7 @@ test('keeps full project installation distinct and expands overlay to full safel
   assert.equal(fs.existsSync(path.join(root, '.codex', 'agents', 'code-reviewer.toml')), true);
   const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'codex.json'), 'utf8'));
   assert.equal(manifest.mode, 'full');
-  assert.equal(manifest.contextualSkills.length, 1);
+  assert.equal(manifest.contextualSkills.length, 0);
 });
 
 test('does not allow replacing a full project installation with an overlay', () => {
@@ -827,7 +797,7 @@ test('supports sync as an overlay alias and dry-run without context writes nothi
   assert.deepEqual(relativeFiles(root).sort(), before);
 });
 
-test('supports contextual overlays for every host without foundation duplication', () => {
+test('supports zero-context overlays for every host without foundation duplication', () => {
   const hosts = [
     ['claude', '.claude', '.claude', '.claude/mcp.json'],
     ['codex', '.agents', '.agents', '.codex/config.toml'],
@@ -844,7 +814,7 @@ test('supports contextual overlays for every host without foundation duplication
     assert.equal(globalInstall.status, 0, `${host} global: ${globalInstall.stdout}${globalInstall.stderr}`);
     const overlay = run(root, '--host', host, '--profile', 'decameron', '--overlay', { env: { HOME: home } });
     assert.equal(overlay.status, 0, `${host} overlay: ${overlay.stdout}${overlay.stderr}`);
-    assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true, host);
+    assert.equal(fs.existsSync(path.join(root, destination)), false, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'api-and-interface-design')), false, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'commands')), false, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'agents')), false, host);
@@ -854,7 +824,7 @@ test('supports contextual overlays for every host without foundation duplication
   }
 });
 
-test('supports overlay monorepos with multiple contextual Skills and no foundation copies', () => {
+test('supports overlay monorepos with zero contextual Skills and no foundation copies', () => {
   const root = makeSandbox();
   const home = makeSandbox();
   fs.mkdirSync(path.join(root, 'frontend'), { recursive: true });
@@ -867,9 +837,7 @@ test('supports overlay monorepos with multiple contextual Skills and no foundati
 
   const result = run(root, 'sync', '--host', 'codex', '--profile', 'decameron', { env: { HOME: home } });
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  for (const id of ['nextjs-vercel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
-    assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', id, 'SKILL.md')), true, id);
-  }
+  assert.equal(fs.existsSync(path.join(root, '.agents')), false);
   assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'api-and-interface-design')), false);
   assert.equal(fs.existsSync(path.join(root, '.codex', 'agents')), false);
   assert.equal(fs.existsSync(path.join(root, '.codex', 'config.toml')), false);
@@ -877,12 +845,10 @@ test('supports overlay monorepos with multiple contextual Skills and no foundati
   fs.rmSync(path.join(root, 'frontend'), { recursive: true, force: true });
   const partial = run(root, 'sync', '--host', 'codex', '--profile', 'decameron', { env: { HOME: home } });
   assert.equal(partial.status, 0, partial.stdout + partial.stderr);
-  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'nextjs-vercel-engineering')), false);
-  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'spring-boot-engineering', 'SKILL.md')), true);
-  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'openshift-engineering', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.agents')), false);
 });
 
-test('accepts legacy manifests without mode and leaves overlays intact after global uninstall', () => {
+test('accepts legacy global manifests without mode when no contextual Skills are registered', () => {
   const root = makeSandbox();
   const home = makeSandbox();
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
@@ -893,19 +859,12 @@ test('accepts legacy manifests without mode and leaves overlays intact after glo
   fs.writeFileSync(globalManifestPath, JSON.stringify(globalManifest));
   assert.equal(run(root, 'sync', '--host', 'cursor', '--profile', 'decameron', { env: { HOME: home } }).status, 0);
 
-  const overlayFile = path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering', 'SKILL.md');
-  assert.equal(fs.existsSync(overlayFile), true);
+  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
   const uninstallGlobal = run(root, '--host', 'cursor', '--profile', 'decameron', '--global', '--uninstall', { env: { HOME: home } });
   assert.equal(uninstallGlobal.status, 0, uninstallGlobal.stdout + uninstallGlobal.stderr);
-  assert.equal(fs.existsSync(overlayFile), true);
+  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
 
-  const overlayManifestPath = path.join(root, '.agent-standard', 'installations', 'cursor.json');
-  const overlayManifest = JSON.parse(fs.readFileSync(overlayManifestPath, 'utf8'));
-  overlayManifest.mode = undefined;
-  delete overlayManifest.mode;
-  fs.writeFileSync(overlayManifestPath, JSON.stringify(overlayManifest));
-  const projectReinstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', { env: { HOME: home } });
-  assert.equal(projectReinstall.status, 0, projectReinstall.stdout + projectReinstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
 });
 
 test('materializes the complete Decameron foundation globally with explicit command fallbacks', () => {

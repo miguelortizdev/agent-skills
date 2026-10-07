@@ -55,7 +55,7 @@ test('accepts a valid catalog and host registry', () => {
   const root = makeSandbox();
   const result = run(root);
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /Registry valid: 53 unique assets and 6 hosts/);
+  assert.match(result.stdout, /Registry valid: 49 unique assets and 6 hosts/);
 });
 
 test('rejects duplicate asset IDs', () => {

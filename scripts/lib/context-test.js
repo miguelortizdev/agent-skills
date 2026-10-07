@@ -24,10 +24,10 @@ function project(files) {
   return root;
 }
 
-function registry() {
+function technologyFixtureRegistry() {
   return { assets: [
-    { id: 'nextjs-vercel-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'dependency', file: 'package.json', names: ['next'] }, { type: 'file', paths: ['next.config.ts'] }] } },
-    { id: 'spring-boot-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', files: ['pom.xml'], patterns: ['org.springframework.boot'] }] } },
+    { id: 'nextjs-vercel-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'dependency', file: 'package.json', match: 'basename', names: ['next'] }, { type: 'file', paths: ['next.config.ts'] }] } },
+    { id: 'spring-boot-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', match: 'basename', files: ['pom.xml'], patterns: ['org.springframework.boot'] }] } },
   ] };
 }
 
@@ -46,20 +46,30 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('canonical production registry has no contextual Skills', () => {
+  const skills = canonicalCatalog.assets.filter((asset) => asset.type === 'skill');
+  assert.equal(skills.length, 25);
+  assert.equal(skills.filter((asset) => asset.contextual === true).length, 0);
+  assert.deepEqual(skills.filter((asset) => asset.source !== 'upstream').map((asset) => asset.id), []);
+  for (const id of ['nextjs-vercel-engineering', 'laravel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
+    assert.equal(skills.some((asset) => asset.id === id), false, id);
+  }
+});
+
 test('resolves Next.js from package metadata and config evidence', () => {
   const root = project({
     'package.json': JSON.stringify({ dependencies: { next: '^15.0.0', react: '^19.0.0' } }),
     'next.config.ts': 'export default {}',
   });
   const context = detectProjectContext(root);
-  const resolved = resolveContextualSkills(context, canonicalCatalog);
+  const resolved = resolveContextualSkills(context, technologyFixtureRegistry());
   assert.deepEqual(resolved.map((entry) => entry.id), ['nextjs-vercel-engineering']);
   assert.deepEqual(resolved[0].evidence, ['package.json -> dependency "next"', 'next.config.ts']);
 });
 
 test('does not resolve Next.js for a plain React project', () => {
   const root = project({ 'package.json': JSON.stringify({ dependencies: { react: '^19.0.0' } }) });
-  assert.equal(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).some((entry) => entry.id === 'nextjs-vercel-engineering'), false);
+  assert.equal(resolveContextualSkills(detectProjectContext(root), technologyFixtureRegistry()).some((entry) => entry.id === 'nextjs-vercel-engineering'), false);
 });
 
 test('resolves Laravel but not Symfony', () => {
@@ -67,24 +77,31 @@ test('resolves Laravel but not Symfony', () => {
     'composer.json': JSON.stringify({ require: { 'laravel/framework': '^10.0' } }),
     artisan: '#!/usr/bin/env php',
   });
-  assert.deepEqual(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).map((entry) => entry.id), ['laravel-engineering']);
+  const fixture = {
+    assets: [
+      { id: 'laravel-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'dependency', file: 'composer.json', match: 'basename', names: ['laravel/framework'] }, { type: 'file', match: 'basename', paths: ['artisan'] }] } },
+    ],
+  };
+  assert.deepEqual(resolveContextualSkills(detectProjectContext(root), fixture).map((entry) => entry.id), ['laravel-engineering']);
 
   const symfony = project({ 'composer.json': JSON.stringify({ require: { 'symfony/framework-bundle': '^7.0' } }) });
-  assert.equal(resolveContextualSkills(detectProjectContext(symfony), canonicalCatalog).some((entry) => entry.id === 'laravel-engineering'), false);
+  assert.equal(resolveContextualSkills(detectProjectContext(symfony), fixture).some((entry) => entry.id === 'laravel-engineering'), false);
 });
 
 test('resolves Spring Boot but not plain Maven', () => {
   const root = project({ 'pom.xml': '<dependency>org.springframework.boot</dependency>' });
-  assert.equal(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).some((entry) => entry.id === 'spring-boot-engineering'), true);
+  const fixture = { assets: [{ id: 'spring-boot-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', match: 'basename', files: ['pom.xml'], patterns: ['org.springframework.boot'] }] } }] };
+  assert.equal(resolveContextualSkills(detectProjectContext(root), fixture).some((entry) => entry.id === 'spring-boot-engineering'), true);
   const plain = project({ 'pom.xml': '<artifactId>commons-lang</artifactId>' });
-  assert.equal(resolveContextualSkills(detectProjectContext(plain), canonicalCatalog).some((entry) => entry.id === 'spring-boot-engineering'), false);
+  assert.equal(resolveContextualSkills(detectProjectContext(plain), fixture).some((entry) => entry.id === 'spring-boot-engineering'), false);
 });
 
 test('resolves OpenShift markers but not generic Kubernetes', () => {
   const openshift = project({ 'openshift/route.yaml': 'apiVersion: route.openshift.io/v1\nkind: Route\n' });
-  assert.equal(resolveContextualSkills(detectProjectContext(openshift), canonicalCatalog).some((entry) => entry.id === 'openshift-engineering'), true);
+  const fixture = { assets: [{ id: 'openshift-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', files: ['openshift/route.yaml'], patterns: ['route.openshift.io/'] }] } }] };
+  assert.equal(resolveContextualSkills(detectProjectContext(openshift), fixture).some((entry) => entry.id === 'openshift-engineering'), true);
   const kubernetes = project({ 'deployment.yaml': 'apiVersion: apps/v1\nkind: Deployment\n', 'service.yaml': 'kind: Service\n' });
-  assert.equal(resolveContextualSkills(detectProjectContext(kubernetes), canonicalCatalog).some((entry) => entry.id === 'openshift-engineering'), false);
+  assert.equal(resolveContextualSkills(detectProjectContext(kubernetes), fixture).some((entry) => entry.id === 'openshift-engineering'), false);
 });
 
 test('resolves multiple contextual Skills with deterministic evidence', () => {
@@ -93,7 +110,7 @@ test('resolves multiple contextual Skills with deterministic evidence', () => {
     'pom.xml': '<dependency>org.springframework.boot</dependency>',
   });
   const context = detectProjectContext(root);
-  const resolved = resolveContextualSkills(context, registry());
+  const resolved = resolveContextualSkills(context, technologyFixtureRegistry());
   assert.deepEqual(resolved.map((entry) => entry.id), ['nextjs-vercel-engineering', 'spring-boot-engineering']);
   assert.ok(resolved.every((entry) => entry.evidence.length > 0));
 });
@@ -106,7 +123,7 @@ test('resolves a multi-stack project without duplicate contextual Skills', () =>
   });
   const context = detectProjectContext(root);
   const resolved = resolveContextualSkills(context, { assets: [
-    ...registry().assets,
+    ...technologyFixtureRegistry().assets,
     { id: 'openshift-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', files: ['openshift/route.yaml'], patterns: ['route.openshift.io/'] }] } },
   ] });
   assert.deepEqual([...new Set(resolved.map((entry) => entry.id))].sort(), ['nextjs-vercel-engineering', 'openshift-engineering', 'spring-boot-engineering']);
@@ -117,7 +134,7 @@ test('detects bounded workspace manifests without traversing excluded directorie
     'packages/web/package.json': JSON.stringify({ dependencies: { next: '^15.0.0' } }),
     'node_modules/ignored/package.json': JSON.stringify({ dependencies: { next: '^15.0.0' } }),
   });
-  assert.equal(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).some((entry) => entry.id === 'nextjs-vercel-engineering'), true);
+  assert.equal(resolveContextualSkills(detectProjectContext(root), technologyFixtureRegistry()).some((entry) => entry.id === 'nextjs-vercel-engineering'), true);
 });
 
 test('resolves nested monorepo signals through the canonical catalog', () => {
@@ -127,7 +144,12 @@ test('resolves nested monorepo signals through the canonical catalog', () => {
     'backend/pom.xml': '<dependency>org.springframework.boot</dependency>',
     'deploy/openshift/route.yaml': 'apiVersion: route.openshift.io/v1\nkind: Route\n',
   });
-  const resolved = resolveContextualSkills(detectProjectContext(root), canonicalCatalog);
+  const resolved = resolveContextualSkills(detectProjectContext(root), {
+    assets: [
+      ...technologyFixtureRegistry().assets,
+      { id: 'openshift-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', files: ['deploy/openshift/route.yaml'], patterns: ['route.openshift.io/'] }] } },
+    ],
+  });
   assert.deepEqual(resolved.map((entry) => entry.id).sort(), [
     'nextjs-vercel-engineering',
     'openshift-engineering',
@@ -140,12 +162,14 @@ test('resolves nested Laravel manifests and keeps generic Kubernetes out', () =>
     'services/api/composer.json': JSON.stringify({ require: { 'laravel/framework': '^10.0' } }),
     'services/api/artisan': '#!/usr/bin/env php',
   });
-  assert.deepEqual(resolveContextualSkills(detectProjectContext(laravel), canonicalCatalog).map((entry) => entry.id), ['laravel-engineering']);
+  assert.deepEqual(resolveContextualSkills(detectProjectContext(laravel), {
+    assets: [{ id: 'laravel-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'dependency', file: 'composer.json', match: 'basename', names: ['laravel/framework'] }, { type: 'file', match: 'basename', paths: ['artisan'] }] } }],
+  }).map((entry) => entry.id), ['laravel-engineering']);
   const kubernetes = project({
     'deploy/k8s/deployment.yaml': 'apiVersion: apps/v1\nkind: Deployment\n',
     'deploy/k8s/service.yaml': 'kind: Service\n',
   });
-  assert.deepEqual(resolveContextualSkills(detectProjectContext(kubernetes), canonicalCatalog), []);
+  assert.deepEqual(resolveContextualSkills(detectProjectContext(kubernetes), technologyFixtureRegistry()), []);
 });
 
 test('scans generic filesystem facts without technology-specific context fields', () => {
