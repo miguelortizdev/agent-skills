@@ -34,15 +34,16 @@ OpenChamber uses OpenCode for agent execution, so restart or reload the
 project after installation. Skills can then be selected from the `/` picker or
 activated by describing a matching task.
 
-Use `--profile default` instead of `--profile decameron` to install the full
-upstream capability set.
+Both `default` and `decameron` install the complete engineering foundation.
+Use `decameron` when the corporate `context7` and `kubernetes` MCP servers are
+also required; use `default` when no corporate MCP selection is needed.
 
 ## Change Profiles Safely
 
 Every successful installation creates:
 
 ```text
-.agent-standard/installation.json
+.agent-standard/installations/<host>.json
 ```
 
 The manifest records the host, profile, scope, file hashes, and which files the

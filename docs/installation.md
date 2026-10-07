@@ -127,7 +127,7 @@ host adapter supports that scope. The installer refuses to overwrite
 conflicting files, follows no symlinks, and writes an ownership manifest at:
 
 ```text
-.agent-standard/installation.json
+.agent-standard/installations/<host>.json
 ```
 
 ## Change Profile
@@ -171,10 +171,45 @@ for supported scopes, paths, and uninstall behavior.
 | Profile | Purpose |
 | --- | --- |
 | `default` | All 25 upstream Skills, 9 Commands, 4 Agents, shared References, and eval metadata. |
-| `decameron` | Corporate baseline with security, API, observability, review, and shipping capabilities. |
+| `decameron` | The complete engineering foundation plus the corporate `context7` and `kubernetes` MCP servers. |
 
 Profiles select canonical IDs from `registry/catalog.json`; they do not embed
 Skill or Agent content.
+
+`default` and `decameron` both select the complete foundation:
+
+```text
+25 Base Skills
+9 Commands
+4 Agents
+7 Shared References
+```
+
+The difference is MCP configuration: `default` selects no MCP servers, while
+`decameron` selects `context7` and `kubernetes`. Contextual Skills are resolved
+separately at project scope and are not part of either profile's 25 Base Skills.
+
+## Global Capability Matrix
+
+Canonical profile selection is independent from host-native materialization. A
+host may materialize a selected Command natively, use the documented underlying
+Skill fallback, or have a limited scope. The current global matrix is:
+
+| Host | Skills | Commands | Agents | References | MCP | Overlay Skills |
+| --- | --- | --- | --- | --- | --- | --- |
+| Claude | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+| Codex | NATIVE | FALLBACK | NATIVE | NATIVE | FALLBACK | NATIVE |
+| Cursor | NATIVE | LIMITED | NATIVE | NATIVE | FALLBACK | NATIVE |
+| Gemini | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+| OpenCode | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+| OpenChamber | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+
+Codex has no native global slash-command destination; lifecycle Commands remain
+available through their underlying Skills. Cursor Commands are project-scoped
+in the current official documentation, so the global installer reports no
+native global Command directory rather than inventing one. MCP fallback means
+the installer manages the host's documented configuration surface while the
+host remains responsible for native discovery/settings behavior.
 
 ## Validate
 

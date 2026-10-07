@@ -62,7 +62,8 @@ npx skills add addyosmani/agent-skills --skill test-driven-development   # red-g
 
 The repository installer supports a shared Global Foundation and a lightweight
 Project Context Overlay. Install the foundation once, then sync only detected
-technology Skills in each project:
+technology Skills in each project. The `decameron` profile includes the full
+25-Skill, 9-Command, 4-Agent, and 7-Reference foundation plus corporate MCP.
 
 ```bash
 node scripts/install-agent-standard.js \
