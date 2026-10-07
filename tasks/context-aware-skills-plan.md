@@ -2,7 +2,7 @@
 
 ## Overview
 
-Detect deterministic local technology signals, resolve declarative contextual
+Detect deterministic local facts, resolve declarative contextual
 Skills from the canonical catalog, and add them to project-scoped installations
 without changing Commands, Agents, host adapters, or the existing ownership
 model.
@@ -12,7 +12,7 @@ model.
 - Context rules live in `registry/catalog.json`; no framework names are
   hardcoded in the installer.
 - `scripts/lib/context-detector.js` only reads bounded local metadata and
-  returns normalized evidence.
+  returns generic files, directories, dependencies, and text facts.
 - `scripts/lib/context-resolver.js` maps evidence to enabled contextual Skills.
 - Contextual Skills augment a profile and are installed through existing
   adapter paths.
@@ -27,7 +27,7 @@ model.
 - [x] Add contextual catalog metadata and strict validation.
 - [x] Implement bounded deterministic context detection.
 - [x] Implement registry-driven context resolution with evidence.
-- [x] Add unit fixtures for positive and false-positive stack signals.
+- [x] Add unit fixtures for positive, false-positive, composed, and future-rule cases.
 
 ### Phase 2: Canonical Skills and installer
 - [x] Add Next.js, Laravel, Spring Boot, and OpenShift Skills.
@@ -43,8 +43,9 @@ model.
 ## Verification
 
 - Baseline: 241/241 tests, routing 89/89, clean worktree.
-- Final: unified suite includes all context tests, no-context behavior remains
-  unchanged, and temporary project/global acceptance workspaces pass.
+- Final: unified suite includes all context tests, generic detector facts remain
+  technology-neutral, no-context behavior remains unchanged, and temporary
+  project/global acceptance workspaces pass.
 
 ## Open Limitations
 

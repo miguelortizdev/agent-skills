@@ -1,16 +1,22 @@
 # Context-Aware Skills
 
-Context-aware Skills add technology-specific guidance to a normal Profile
-without replacing its foundation. Project installation reads bounded local
-metadata, resolves declarative rules from `registry/catalog.json`, and sends
-the resulting canonical Skills through the existing installer and adapters.
+Context-aware Skills add targeted guidance to a normal Profile without replacing
+its foundation. Project installation reads bounded local facts, resolves
+declarative rules from `registry/catalog.json`, and sends the resulting
+canonical Skills through the existing installer and adapters.
 
 ## Detection
 
 Detection is deterministic and local. It does not use an LLM, the network,
 project scripts, package-manager commands, `.env` values, or project binaries.
-The detector reads known manifests and bounded files while excluding `.git`,
-`node_modules`, `vendor`, build outputs, coverage, caches, and temporary files.
+The detector produces only generic facts: bounded file paths, directories,
+dependency names, and text content from candidate files. It excludes `.git`,
+host-managed installation directories, `node_modules`, `vendor`, build outputs,
+coverage, caches, and temporary files.
+
+The detector does not know what Next.js, Laravel, Spring Boot, OpenShift, or any
+future technology is. Technology knowledge belongs only in the Registry rule
+attached to a contextual Skill.
 
 Supported contextual Skills:
 
@@ -57,12 +63,44 @@ not claim ownership of global Skills, Commands, Agents, References, or MCP.
 
 1. Create a standard `skills/<name>/SKILL.md` with the normal Skill anatomy.
 2. Register it as a custom `skill` with `contextual: true` in `registry/catalog.json`.
-3. Declare `appliesWhen.any` using dependency, file, or bounded text signals.
+3. Declare `appliesWhen` using the generic rule DSL below.
 4. Add detector/resolver fixtures for positive, negative, and multi-stack cases.
 5. Run registry, Skill, installer, and full-suite validation.
 
-No adapter changes are required. Do not add framework-specific logic to the
-installer; the installer consumes resolved canonical asset IDs.
+No adapter changes are required. Do not add technology-specific logic to the
+detector, resolver, or installer; they consume generic facts and resolved
+canonical asset IDs.
+
+## Rule DSL
+
+Rules are JSON objects in `registry/catalog.json`. Leaf rules may use:
+
+| Rule | Purpose | Example |
+| --- | --- | --- |
+| `file` | Match one or more bounded paths | `{ "type": "file", "paths": ["next.config.ts"] }` |
+| `path` | Match a path pattern | `{ "type": "path", "patterns": ["services/*/package.json"] }` |
+| `dependency` | Match dependency names in manifest files | `{ "type": "dependency", "names": ["next"] }` |
+| `text` | Match text patterns in bounded files | `{ "type": "text", "files": ["platform.yaml"], "patterns": ["route.openshift.io/"] }` |
+
+Compose rules with `anyOf`, `allOf`, and `noneOf`:
+
+```json
+{
+  "allOf": [
+    { "type": "file", "paths": ["platform.yaml"] },
+    { "anyOf": [
+      { "type": "text", "files": ["platform.yaml"], "patterns": ["kind: FuturePlatform"] },
+      { "type": "dependency", "names": ["future-platform-sdk"] }
+    ] }
+  ],
+  "noneOf": [
+    { "type": "text", "files": ["platform.yaml"], "patterns": ["legacy: true"] }
+  ]
+}
+```
+
+Add a new contextual Skill by changing the Registry and adding fixtures. Core
+scanner and resolver code must not change for a new technology.
 
 ## Troubleshooting
 
