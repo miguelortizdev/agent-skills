@@ -694,3 +694,200 @@ test('does not uninstall a file modified after installation', () => {
   assert.match(uninstall.stderr, /modified files/);
   assert.equal(fs.existsSync(target), true);
 });
+
+test('installs a project overlay only after a matching global foundation exists', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  const globalInstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--global', { env: { HOME: home } });
+  assert.equal(globalInstall.status, 0, globalInstall.stdout + globalInstall.stderr);
+
+  const overlay = run(root, '--host', 'cursor', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(overlay.status, 0, overlay.stdout + overlay.stderr);
+  assert.match(overlay.stdout, /Global foundation: available/);
+  assert.match(overlay.stdout, /Project overlay/);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'api-and-interface-design')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'commands')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'agents')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'mcp.json')), false);
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
+  assert.equal(manifest.mode, 'overlay');
+  assert.equal(manifest.scope, 'project');
+  assert.equal(manifest.host, 'cursor');
+  assert.equal(manifest.profile, 'decameron');
+  assert.deepEqual(manifest.contextualSkills.map((skill) => skill.id), ['nextjs-vercel-engineering']);
+  assert.ok(manifest.files.every((file) => file.path.includes('nextjs-vercel-engineering')));
+  assert.equal(fs.existsSync(path.join(home, '.cursor', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
+});
+
+test('rejects an overlay without a compatible global foundation', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  const result = run(root, '--host', 'codex', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /global foundation was not found/i);
+  assert.equal(fs.existsSync(path.join(root, '.agents')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
+});
+
+test('rejects overlay profile and host mismatches without writing project files', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  assert.equal(run(root, '--host', 'cursor', '--profile', 'default', '--global', { env: { HOME: home } }).status, 0);
+
+  const profileMismatch = run(root, '--host', 'cursor', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(profileMismatch.status, 1);
+  assert.match(profileMismatch.stderr, /global foundation profile mismatch/i);
+  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
+
+  const hostMismatch = run(root, '--host', 'codex', '--profile', 'default', '--overlay', { env: { HOME: home } });
+  assert.equal(hostMismatch.status, 1);
+  assert.match(hostMismatch.stderr, /global foundation.*host mismatch|global foundation was not found/i);
+  assert.equal(fs.existsSync(path.join(root, '.agents')), false);
+});
+
+test('reconciles overlay context, stays idempotent, and uninstalls only overlay files', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  assert.equal(run(root, '--host', 'claude', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
+
+  const first = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  const overlayFile = path.join(root, '.claude', 'skills', 'nextjs-vercel-engineering', 'SKILL.md');
+  const firstManifest = fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'claude.json'), 'utf8');
+  assert.equal(fs.existsSync(overlayFile), true);
+
+  const second = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  assert.equal(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'claude.json'), 'utf8'), firstManifest);
+
+  fs.rmSync(path.join(root, 'package.json'));
+  const removed = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(removed.status, 0, removed.stdout + removed.stderr);
+  assert.equal(fs.existsSync(overlayFile), false);
+  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
+
+  const uninstall = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', '--uninstall', { env: { HOME: home } });
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.claude')), false);
+  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
+});
+
+test('keeps full project installation distinct and expands overlay to full safely', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  assert.equal(run(root, '--host', 'codex', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
+  assert.equal(run(root, '--host', 'codex', '--profile', 'decameron', '--overlay', { env: { HOME: home } }).status, 0);
+
+  const full = run(root, '--host', 'codex', '--profile', 'decameron', '--project', { env: { HOME: home } });
+  assert.equal(full.status, 0, full.stdout + full.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.codex', 'agents', 'code-reviewer.toml')), true);
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'codex.json'), 'utf8'));
+  assert.equal(manifest.mode, 'full');
+  assert.equal(manifest.contextualSkills.length, 1);
+});
+
+test('does not allow replacing a full project installation with an overlay', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  assert.equal(run(root, '--host', 'cursor', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
+  assert.equal(run(root, '--host', 'cursor', '--profile', 'decameron', '--project', { env: { HOME: home } }).status, 0);
+  const overlay = run(root, '--host', 'cursor', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(overlay.status, 1);
+  assert.match(overlay.stderr, /full project installation.*uninstall/i);
+});
+
+test('supports sync as an overlay alias and dry-run without context writes nothing', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  assert.equal(run(root, '--host', 'gemini', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
+  const before = relativeFiles(root).sort();
+  const result = run(root, 'sync', '--host', 'gemini', '--profile', 'decameron', '--dry-run', { env: { HOME: home } });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /Global foundation: available/);
+  assert.match(result.stdout, /Project overlay: contextual Skills only/);
+  assert.match(result.stdout, /Detected project context: none/);
+  assert.match(result.stdout, /No files changed/);
+  assert.deepEqual(relativeFiles(root).sort(), before);
+});
+
+test('supports contextual overlays for every host without foundation duplication', () => {
+  const hosts = [
+    ['claude', '.claude', '.claude', '.claude/mcp.json'],
+    ['codex', '.agents', '.agents', '.codex/config.toml'],
+    ['cursor', '.cursor', '.cursor', '.cursor/mcp.json'],
+    ['gemini', '.gemini', '.gemini', '.gemini/settings.json'],
+    ['opencode', '.opencode', '.config/opencode', 'opencode.json'],
+    ['openchamber', '.opencode', '.config/opencode', 'opencode.json'],
+  ];
+  for (const [host, destination, globalDestination, mcpPath] of hosts) {
+    const root = makeSandbox();
+    const home = makeSandbox();
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+    const globalInstall = run(root, '--host', host, '--profile', 'decameron', '--global', { env: { HOME: home } });
+    assert.equal(globalInstall.status, 0, `${host} global: ${globalInstall.stdout}${globalInstall.stderr}`);
+    const overlay = run(root, '--host', host, '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+    assert.equal(overlay.status, 0, `${host} overlay: ${overlay.stdout}${overlay.stderr}`);
+    assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true, host);
+    assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'api-and-interface-design')), false, host);
+    assert.equal(fs.existsSync(path.join(root, destination, 'commands')), false, host);
+    assert.equal(fs.existsSync(path.join(root, destination, 'agents')), false, host);
+    assert.equal(fs.existsSync(path.join(root, mcpPath)), false, host);
+    assert.equal(fs.existsSync(path.join(home, globalDestination, 'skills', 'api-and-interface-design', 'SKILL.md')), true, `${host} foundation`);
+  }
+});
+
+test('supports overlay monorepos with multiple contextual Skills and no foundation copies', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.mkdirSync(path.join(root, 'frontend'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'frontend', 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  fs.mkdirSync(path.join(root, 'backend'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'deploy', 'openshift'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'backend', 'pom.xml'), '<dependency>org.springframework.boot</dependency>\n');
+  fs.writeFileSync(path.join(root, 'deploy', 'openshift', 'route.yaml'), 'apiVersion: route.openshift.io/v1\nkind: Route\n');
+  assert.equal(run(root, '--host', 'codex', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
+
+  const result = run(root, 'sync', '--host', 'codex', '--profile', 'decameron', { env: { HOME: home } });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  for (const id of ['nextjs-vercel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
+    assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', id, 'SKILL.md')), true, id);
+  }
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'api-and-interface-design')), false);
+  assert.equal(fs.existsSync(path.join(root, '.codex', 'agents')), false);
+  assert.equal(fs.existsSync(path.join(root, '.codex', 'config.toml')), false);
+});
+
+test('accepts legacy manifests without mode and leaves overlays intact after global uninstall', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  assert.equal(run(root, '--host', 'cursor', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
+  const globalManifestPath = path.join(home, '.agent-standard', 'installations', 'cursor.json');
+  const globalManifest = JSON.parse(fs.readFileSync(globalManifestPath, 'utf8'));
+  delete globalManifest.mode;
+  fs.writeFileSync(globalManifestPath, JSON.stringify(globalManifest));
+  assert.equal(run(root, 'sync', '--host', 'cursor', '--profile', 'decameron', { env: { HOME: home } }).status, 0);
+
+  const overlayFile = path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering', 'SKILL.md');
+  assert.equal(fs.existsSync(overlayFile), true);
+  const uninstallGlobal = run(root, '--host', 'cursor', '--profile', 'decameron', '--global', '--uninstall', { env: { HOME: home } });
+  assert.equal(uninstallGlobal.status, 0, uninstallGlobal.stdout + uninstallGlobal.stderr);
+  assert.equal(fs.existsSync(overlayFile), true);
+
+  const overlayManifestPath = path.join(root, '.agent-standard', 'installations', 'cursor.json');
+  const overlayManifest = JSON.parse(fs.readFileSync(overlayManifestPath, 'utf8'));
+  overlayManifest.mode = undefined;
+  delete overlayManifest.mode;
+  fs.writeFileSync(overlayManifestPath, JSON.stringify(overlayManifest));
+  const projectReinstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', { env: { HOME: home } });
+  assert.equal(projectReinstall.status, 0, projectReinstall.stdout + projectReinstall.stderr);
+});

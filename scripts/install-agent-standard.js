@@ -22,20 +22,23 @@ function readJson(file) {
 }
 
 function parseArgs(argv) {
-  const options = { dryRun: false, global: false, project: false, uninstall: false };
+  const options = { dryRun: false, global: false, project: false, overlay: false, uninstall: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') options.dryRun = true;
     else if (arg === '--uninstall') options.uninstall = true;
     else if (arg === '--global') options.global = true;
     else if (arg === '--project') options.project = true;
+    else if (arg === '--overlay' || arg === 'sync') options.overlay = true;
     else if (arg === '--host') options.host = argv[++index];
     else if (arg === '--profile') options.profile = argv[++index];
     else throw new Error(`unknown option: ${arg}`);
   }
   if (!options.host) throw new Error('--host is required');
   if (!options.profile) throw new Error('--profile is required');
-  if (options.global === options.project) throw new Error('choose exactly one of --global or --project');
+  if (Number(options.global) + Number(options.project) + Number(options.overlay) !== 1) {
+    throw new Error('choose exactly one of --global, --project, or --overlay');
+  }
   return options;
 }
 
@@ -180,6 +183,41 @@ function readInstallationManifests(installRoot) {
   }));
 }
 
+function installationMode(manifest) {
+  if (manifest.mode) return manifest.mode;
+  return manifest.scope === 'global' ? 'global' : 'full';
+}
+
+function requestedMode(options) {
+  if (options.global) return 'global';
+  if (options.overlay) return 'overlay';
+  return 'full';
+}
+
+function validateGlobalFoundation(hostId, profileName) {
+  const globalRoot = os.homedir();
+  const globalManifests = readInstallationManifests(globalRoot)
+    .filter((entry) => installationMode(entry.manifest) === 'global');
+  const hostManifest = globalManifests.find((entry) => entry.manifest.host === hostId);
+  if (!hostManifest) {
+    if (globalManifests.length) {
+      throw new Error(`global foundation host mismatch; requested ${hostId}, installed hosts: ${globalManifests.map((entry) => entry.manifest.host).join(', ')}`);
+    }
+    throw new Error(`global foundation was not found for host ${hostId}`);
+  }
+  if (hostManifest.manifest.profile !== profileName) {
+    throw new Error(`global foundation profile mismatch; installed globally: ${hostManifest.manifest.profile}; requested by project: ${profileName}`);
+  }
+  if (!Array.isArray(hostManifest.manifest.files) || hostManifest.manifest.files.length === 0) {
+    throw new Error(`global foundation was not found for host ${hostId}`);
+  }
+  const missing = hostManifest.manifest.files
+    .filter((file) => !fs.existsSync(safePath(globalRoot, file.path)))
+    .map((file) => file.path);
+  if (missing.length) throw new Error(`global foundation is incomplete for host ${hostId}; missing managed files: ${missing.join(', ')}`);
+  return hostManifest.manifest;
+}
+
 function writeManifest(file, manifest) {
   assertNoSymlinkPath(path.dirname(file), path.dirname(file));
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -198,6 +236,7 @@ function buildPlan(options) {
   if (!host) throw new Error(`unknown host: ${options.host}`);
   const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
+  const mode = requestedMode(options);
   const scope = options.global ? 'global' : 'project';
   const installRoot = options.global ? os.homedir() : process.cwd();
   const installationManifest = manifestPath(installRoot, host.id);
@@ -205,6 +244,15 @@ function buildPlan(options) {
   if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== scope)) {
     throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
   }
+  if (existingManifest && installationMode(existingManifest) !== mode) {
+    if (mode === 'overlay' && installationMode(existingManifest) === 'full') {
+      throw new Error('a full project installation is already present; uninstall it before switching to overlay mode');
+    }
+    if (mode === 'global' || installationMode(existingManifest) === 'global') {
+      throw new Error(`installation mode mismatch: existing ${installationMode(existingManifest)}, requested ${mode}`);
+    }
+  }
+  const globalFoundation = mode === 'overlay' ? validateGlobalFoundation(host.id, profile.name) : null;
   const actions = [];
   const mcpActions = [];
   const skipped = [];
@@ -227,7 +275,7 @@ function buildPlan(options) {
     const field = TYPE_FIELDS[asset.type];
     if (field && !selectedProfile[field].includes(id)) selectedProfile[field].push(id);
   }
-  for (const field of Object.values(TYPE_FIELDS)) selectedProfile[field] = [...(profile[field] || [])];
+  for (const field of Object.values(TYPE_FIELDS)) selectedProfile[field] = mode === 'overlay' ? [] : [...(profile[field] || [])];
   for (const skill of contextualSkills) if (!selectedProfile.skills.includes(skill.id)) selectedProfile.skills.push(skill.id);
   for (const field of Object.values(TYPE_FIELDS)) for (const id of selectedProfile[field]) requireAsset(id);
 
@@ -269,7 +317,7 @@ function buildPlan(options) {
       }
     }
   }
-  if ((profile.mcp || []).length) {
+  if (mode !== 'overlay' && (profile.mcp || []).length) {
     if (!adapter.mcpConfig) throw new Error(`host ${host.id} has no MCP configuration adapter`);
     const representation = adapter.mcpConfig;
     const projectCandidates = representation.projectPaths || [representation.projectPath];
@@ -304,7 +352,7 @@ function buildPlan(options) {
     evidence: skill.evidence,
     root: safePath(installRoot, path.join(installDestinations(adapter, scope).skills, skill.id)),
   }));
-  return { options, host, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles };
+  return { options, mode, scope, host, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, globalFoundation };
 }
 
 function executeInstall(plan) {
@@ -383,7 +431,22 @@ function executeInstall(plan) {
     return { id: skill.id, evidence: skill.evidence, files: files.filter((file) => file.path.startsWith(prefix)) };
   });
   assertNoSymlinkPath(plan.installRoot, path.dirname(plan.installationManifest));
-  writeManifest(plan.installationManifest, { version: 1, host: plan.host.id, profile: plan.profile.name, scope: plan.options.global ? 'global' : 'project', files, contextualSkills: contextualManifest, mcp: mcpRecords });
+  const context = plan.detectedContext && {
+    frameworks: Object.keys(plan.detectedContext.frameworks),
+    platforms: Object.keys(plan.detectedContext.platforms),
+  };
+  writeManifest(plan.installationManifest, {
+    version: 1,
+    host: plan.host.id,
+    profile: plan.profile.name,
+    scope: plan.scope,
+    mode: plan.mode,
+    foundation: plan.mode === 'overlay' ? { source: 'global', required: true } : undefined,
+    context: context || undefined,
+    files,
+    contextualSkills: contextualManifest,
+    mcp: mcpRecords,
+  });
 }
 
 function removeEmptyParents(start, stop) {
@@ -504,10 +567,12 @@ function uninstallPlan(options) {
   const installationManifest = manifestPath(installRoot, options.host);
   const existingManifest = readManifest(installationManifest);
   if (!existingManifest) throw new Error('no installation manifest found; cannot safely uninstall untracked files');
+  const mode = requestedMode(options);
   if (existingManifest.host !== options.host || existingManifest.profile !== options.profile || existingManifest.scope !== (options.global ? 'global' : 'project')) {
     throw new Error(`installation manifest belongs to ${existingManifest.host}/${existingManifest.profile}, not ${options.host}/${options.profile}`);
   }
-  return { options, host: { id: existingManifest.host, displayName: existingManifest.host }, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], mcpActions: [], skipped: [], contextualSkills: [], contextualRoots: [], staleContextFiles: [] };
+  if (installationMode(existingManifest) !== mode) throw new Error(`installation manifest mode is ${installationMode(existingManifest)}, not ${mode}`);
+  return { options, mode, scope: existingManifest.scope, host: { id: existingManifest.host, displayName: existingManifest.host }, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], mcpActions: [], skipped: [], contextualSkills: [], contextualRoots: [], staleContextFiles: [] };
 }
 
 function execute(plan) {
@@ -520,6 +585,11 @@ function main() {
   const plan = options.uninstall ? uninstallPlan(options) : buildPlan(options);
   console.log(`${plan.options.dryRun ? 'Dry run' : plan.options.uninstall ? 'Uninstall' : 'Install'}: ${plan.host.displayName} / ${plan.profile.name}`);
   console.log(`Target root: ${plan.installRoot}`);
+  if (!plan.options.uninstall && plan.mode === 'overlay') {
+    console.log('Global foundation: available');
+    console.log('Project overlay: contextual Skills only');
+    console.log(`  reused globally: ${plan.options.profile} foundation (Base Skills, Commands, Agents, References, MCP)`);
+  }
   if (!plan.options.uninstall && plan.detectedContext) {
     console.log(`Detected project context: ${Object.keys(plan.detectedContext.frameworks).concat(Object.keys(plan.detectedContext.platforms)).join(', ') || 'none'}`);
     for (const skill of plan.contextualSkills) console.log(`  contextual skill: + ${skill.id} (${skill.evidence.join('; ')})`);
