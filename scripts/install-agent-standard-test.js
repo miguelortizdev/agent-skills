@@ -770,8 +770,12 @@ test('reconciles overlay context, stays idempotent, and uninstalls only overlay 
   const removed = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
   assert.equal(removed.status, 0, removed.stdout + removed.stderr);
   assert.equal(fs.existsSync(overlayFile), false);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
   assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
 
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  const reinstall = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', { env: { HOME: home } });
+  assert.equal(reinstall.status, 0, reinstall.stdout + reinstall.stderr);
   const uninstall = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', '--uninstall', { env: { HOME: home } });
   assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
   assert.equal(fs.existsSync(path.join(root, '.claude')), false);
@@ -816,6 +820,10 @@ test('supports sync as an overlay alias and dry-run without context writes nothi
   assert.match(result.stdout, /Project overlay: contextual Skills only/);
   assert.match(result.stdout, /Detected project context: none/);
   assert.match(result.stdout, /No files changed/);
+  assert.deepEqual(relativeFiles(root).sort(), before);
+
+  const install = run(root, 'sync', '--host', 'gemini', '--profile', 'decameron', { env: { HOME: home } });
+  assert.equal(install.status, 0, install.stdout + install.stderr);
   assert.deepEqual(relativeFiles(root).sort(), before);
 });
 

@@ -425,6 +425,13 @@ function executeInstall(plan) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
+  if (plan.mode === 'overlay' && plan.contextualSkills.length === 0) {
+    if (plan.existingManifest) {
+      fs.unlinkSync(plan.installationManifest);
+      removeEmptyParents(path.dirname(plan.installationManifest), plan.installRoot);
+    }
+    return;
+  }
   const contextualManifest = plan.contextualSkills.map((skill) => {
     const root = plan.contextualRoots.find((entry) => entry.id === skill.id).root;
     const prefix = `${path.relative(plan.installRoot, root)}${path.sep}`;
