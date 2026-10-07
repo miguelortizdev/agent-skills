@@ -50,6 +50,12 @@ values are not. Adapters translate this header reference to each native
 format, such as Claude/OpenCode header interpolation or Codex's
 `bearer_token_env_var` and `env_http_headers` fields.
 
+Codex preserves `Authorization` with the exact `Bearer ` prefix through
+`bearer_token_env_var`. Other Codex environment-backed headers must not use a
+prefix. STDIO environment keys must equal their source variable names because
+Codex's supported `env_vars` passthrough does not provide a target-key mapping;
+different names fail explicitly rather than changing semantics.
+
 ## Profiles And Installation
 
 Add only the registry ID to a profile's `mcp` array. Validate the registry and
