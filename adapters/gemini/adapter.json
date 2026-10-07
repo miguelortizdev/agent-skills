@@ -1,5 +1,6 @@
 {
   "host": "gemini",
+  "globalCommandSupport": "native",
   "status": "verified",
   "officialDocs": [
     "https://geminicli.com/docs/cli/skills/",

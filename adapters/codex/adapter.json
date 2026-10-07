@@ -1,5 +1,6 @@
 {
   "host": "codex",
+  "globalCommandSupport": "fallback",
   "status": "verified",
   "officialDocs": [
     "https://developers.openai.com/codex/skills",

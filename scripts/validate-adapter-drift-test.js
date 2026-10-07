@@ -47,6 +47,24 @@ test('accepts adapters that map all registered capability types', () => {
   assert.match(result.stdout, /Adapter drift check passed: 6 hosts/);
 });
 
+test('requires explicit and coherent global Command support metadata', () => {
+  const root = makeSandbox();
+  const file = path.join(root, 'adapters', 'cursor', 'adapter.json');
+  const adapter = JSON.parse(fs.readFileSync(file, 'utf8'));
+  delete adapter.globalCommandSupport;
+  fs.writeFileSync(file, JSON.stringify(adapter));
+  let result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /globalCommandSupport/);
+
+  const native = JSON.parse(fs.readFileSync(path.join(root, 'adapters', 'codex', 'adapter.json'), 'utf8'));
+  native.globalCommandSupport = 'native';
+  fs.writeFileSync(path.join(root, 'adapters', 'codex', 'adapter.json'), JSON.stringify(native));
+  result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /native global Commands without a global destination/);
+});
+
 test('rejects a missing adapter', () => {
   const root = makeSandbox();
   fs.rmSync(path.join(root, 'adapters', 'cursor'), { recursive: true, force: true });

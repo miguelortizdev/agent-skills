@@ -1,5 +1,6 @@
 {
   "host": "openchamber",
+  "globalCommandSupport": "native",
   "status": "verified",
   "officialDocs": [
     "https://docs.openchamber.dev/skills/",

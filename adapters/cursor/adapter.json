@@ -1,5 +1,6 @@
 {
   "host": "cursor",
+  "globalCommandSupport": "limited",
   "status": "verified",
   "officialDocs": [
     "https://docs.cursor.com/context/skills",

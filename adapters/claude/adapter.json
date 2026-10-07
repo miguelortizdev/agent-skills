@@ -1,5 +1,6 @@
 {
   "host": "claude",
+  "globalCommandSupport": "native",
   "status": "verified",
   "officialDocs": [
     "https://code.claude.com/docs/en/plugins",

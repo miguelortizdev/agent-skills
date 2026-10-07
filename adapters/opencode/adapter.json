@@ -1,5 +1,6 @@
 {
   "host": "opencode",
+  "globalCommandSupport": "native",
   "status": "verified",
   "officialDocs": [
     "https://opencode.ai/docs/skills/",
