@@ -26,7 +26,8 @@
     "source-driven-development",
     "spec-driven-development",
     "test-driven-development",
-    "using-agent-skills"
+    "using-agent-skills",
+    "vercel-react-best-practices"
   ],
   "commands": ["spec", "plan", "build", "test", "constraints", "review", "webperf", "code-simplify", "ship"],
   "agents": ["code-reviewer", "security-auditor", "test-engineer", "web-performance-auditor"],

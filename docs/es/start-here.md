@@ -11,7 +11,7 @@ genérico.
 
 Catálogo productivo actual:
 
-- 26 Skills: 25 Skills base y 1 Contextual Skill
+- 26 Skills: 25 Skills base y 1 Skill exclusivo de decameron
 - 9 Commands, 4 Agents, 7 References y 6 Hosts
 
 ## Elige Tu Ruta

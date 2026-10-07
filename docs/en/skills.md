@@ -6,17 +6,17 @@
 
 - 26 production Skills
 - 25 Base Skills
-- 1 production Contextual Skill: `vercel-react-best-practices`
+- 1 Profile-scoped Skill: `vercel-react-best-practices` (decameron only)
 
-Both `default` and `decameron` Profiles select the same 25-Skill Foundation.
-`decameron` additionally selects corporate MCP.
+The `default` Profile selects the 25-Skill Foundation. `decameron` adds
+`vercel-react-best-practices` and corporate MCP.
 
 ## Base And Contextual Skills
 
-Base Skills describe durable engineering workflows and are always selected by the
+Base Skills describe durable engineering workflows and are selected by both
 Profiles. A Contextual Skill is an optional Registry asset selected from bounded
-project facts. The current production catalog includes the Vercel React and
-Next.js Skill, and the generic engine remains ready for future additions.
+project facts. The Vercel Skill is profile-scoped and is not auto-selected by
+project evidence.
 
 ## Skill Anatomy
 

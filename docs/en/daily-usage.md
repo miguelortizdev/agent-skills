@@ -22,8 +22,8 @@ Commands, the installer keeps the underlying Skills available as the documented
 fallback.
 
 For a new project, run `sync --host <host> --profile decameron` after the global
-Foundation exists. The Overlay can now materialize production Contextual Skills to
-install; future Registry entries can add them automatically.
+Foundation exists. The `decameron` Profile installs the Vercel React and Next.js
+Skill; the `default` Profile does not.
 
 See [Skills](skills.md) for choosing a direct Skill and [Troubleshooting](troubleshooting.md)
 when a Command or installation is not available.

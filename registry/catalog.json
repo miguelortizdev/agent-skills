@@ -27,7 +27,7 @@
     {"id":"spec-driven-development","type":"skill","path":"skills/spec-driven-development/SKILL.md","source":"upstream","enabled":true,"requires":["context-engineering"]},
     {"id":"test-driven-development","type":"skill","path":"skills/test-driven-development/SKILL.md","source":"upstream","enabled":true,"requires":["testing-patterns"]},
     {"id":"using-agent-skills","type":"skill","path":"skills/using-agent-skills/SKILL.md","source":"upstream","enabled":true},
-    {"id":"vercel-react-best-practices","type":"skill","path":"skills/vercel-react-best-practices/SKILL.md","source":"custom","enabled":true,"contextual":true,"tags":["react","nextjs","performance"],"appliesWhen":{"anyOf":[{"type":"dependency","file":"package.json","match":"basename","names":["react","react-dom","next"]}]}},
+    {"id":"vercel-react-best-practices","type":"skill","path":"skills/vercel-react-best-practices/SKILL.md","source":"custom","enabled":true},
     {"id":"spec","type":"command","path":"commands/spec.toml","source":"upstream","enabled":true,"requires":["spec-driven-development"]},
     {"id":"plan","type":"command","path":"commands/planning.toml","source":"upstream","enabled":true,"requires":["planning-and-task-breakdown"]},
     {"id":"build","type":"command","path":"commands/build.toml","source":"upstream","enabled":true,"requires":["incremental-implementation","test-driven-development"]},

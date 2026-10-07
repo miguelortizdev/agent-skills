@@ -416,27 +416,28 @@ test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', (
   assert.deepEqual(fs.readFileSync(malformedPath), original);
 });
 
-test('project installs the matching production contextual Skill', () => {
+test('decameron installs its profile-scoped Vercel Skill', () => {
   const root = makeSandbox();
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
   fs.writeFileSync(path.join(root, 'next.config.ts'), 'export default {}\n');
   const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(install.status, 0, install.stdout + install.stderr);
-  assert.match(install.stdout, /Detected project context: vercel-react-best-practices/);
+  assert.match(install.stdout, /Detected project context: none/);
   const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
-  assert.deepEqual(manifest.contextualSkills.map((entry) => entry.id), ['vercel-react-best-practices']);
+  assert.deepEqual(manifest.contextualSkills, []);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'vercel-react-best-practices', 'SKILL.md')), true);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'security-and-hardening', 'SKILL.md')), true);
 });
 
-test('technology evidence installs the registered contextual Skill for project and global scopes', () => {
+test('decameron installs the profile-scoped Skill for project and global scopes', () => {
   for (const host of ['claude', 'codex', 'cursor', 'gemini', 'opencode', 'openchamber']) {
     const root = makeSandbox();
     fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
     const project = run(root, '--host', host, '--profile', 'decameron', '--project');
     assert.equal(project.status, 0, `${host}: ${project.stdout}${project.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', `${host}.json`), 'utf8'));
-    assert.deepEqual(manifest.contextualSkills.map((entry) => entry.id), ['vercel-react-best-practices'], host);
+    assert.deepEqual(manifest.contextualSkills, [], host);
+    assert.equal(manifest.files.some((file) => file.path.includes('vercel-react-best-practices')), true, host);
 
     const globalRoot = makeSandbox();
     fs.writeFileSync(path.join(globalRoot, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
@@ -446,6 +447,14 @@ test('technology evidence installs the registered contextual Skill for project a
     const globalManifest = JSON.parse(fs.readFileSync(path.join(home, '.agent-standard', 'installations', `${host}.json`), 'utf8'));
     assert.deepEqual(globalManifest.contextualSkills, [], `${host} global context should not inspect the project`);
   }
+});
+
+test('default profile does not install the Vercel Skill', () => {
+  const root = makeSandbox();
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  const install = run(root, '--host', 'cursor', '--profile', 'default', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'vercel-react-best-practices', 'SKILL.md')), false);
 });
 
 test('zero-context dry-run explains no registered contextual Skills without writing', () => {
@@ -764,7 +773,7 @@ test('keeps full project installation distinct and expands overlay to full safel
   assert.equal(fs.existsSync(path.join(root, '.codex', 'agents', 'code-reviewer.toml')), true);
   const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'codex.json'), 'utf8'));
   assert.equal(manifest.mode, 'full');
-  assert.deepEqual(manifest.contextualSkills.map((entry) => entry.id), ['vercel-react-best-practices']);
+  assert.deepEqual(manifest.contextualSkills, []);
 });
 
 test('does not allow replacing a full project installation with an overlay', () => {
@@ -888,7 +897,7 @@ test('materializes the complete Decameron foundation globally with explicit comm
     assert.equal(manifest.mode, 'global');
     assert.equal(manifest.profile, 'decameron');
     assert.equal(manifest.contextualSkills.length, 0);
-    assert.equal(fs.readdirSync(path.join(home, expected.root, 'skills')).length, 25, `${expected.host} base Skills`);
+    assert.equal(fs.readdirSync(path.join(home, expected.root, 'skills')).length, 26, `${expected.host} decameron Skills`);
     assert.equal(fs.readdirSync(path.join(home, expected.agents, 'agents')).length, 4, `${expected.host} Agents`);
     assert.equal(fs.readdirSync(path.join(home, expected.references, 'references')).length, 7, `${expected.host} References`);
     assert.equal(manifest.mcp.length, 2, `${expected.host} MCP`);

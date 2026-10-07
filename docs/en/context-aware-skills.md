@@ -2,13 +2,13 @@
 
 🇺🇸 English | 🇪🇸 [Español](../es/context-aware-skills.md)
 
-The Generic Context Rules Engine selects software-specific Skills from bounded
-project evidence. Production Contextual Skills: **1**.
+The Generic Context Rules Engine remains available for software-specific Skills.
+The Vercel React and Next.js Skill is intentionally profile-scoped, not a
+production Contextual Skill.
 
-The first production Contextual Skill is `vercel-react-best-practices`, adapted
-from [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) and
-maintained by Vercel Engineering under the MIT license. It activates when a
-project manifest declares `react`, `react-dom`, or `next`.
+`vercel-react-best-practices` is included only by the `decameron` Profile. It is
+adapted from [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)
+and maintained by Vercel Engineering under the MIT license.
 
 ## Generic Rules
 

@@ -2,13 +2,13 @@
 
 🇪🇸 Español | 🇺🇸 [English](../en/context-aware-skills.md)
 
-El Generic Context Rules Engine selecciona Skills específicos de software a
-partir de evidencia acotada del proyecto. Contextual Skills productivos: **1**.
+El Generic Context Rules Engine sigue disponible para Skills específicos de
+software. El Skill de React y Next.js de Vercel está limitado intencionalmente
+al Profile, no es un Contextual Skill productivo.
 
-El primer Contextual Skill productivo es `vercel-react-best-practices`, adaptado
-de [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) y
-mantenido por Vercel Engineering bajo la licencia MIT. Se activa cuando el
-manifest del proyecto declara `react`, `react-dom` o `next`.
+`vercel-react-best-practices` solo está incluido por el Profile `decameron`.
+Está adaptado de [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)
+y mantenido por Vercel Engineering bajo la licencia MIT.
 
 ## Reglas Genéricas
 

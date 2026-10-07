@@ -57,8 +57,8 @@ test('decameron selects the complete engineering foundation plus corporate MCP',
   const root = makeSandbox();
   const decameron = readProfile(root);
   const generic = readDefaultProfile(root);
-  assert.equal(decameron.data.skills.length, 25);
-  assert.deepEqual([...decameron.data.skills].sort(), [...generic.skills].sort());
+  assert.equal(decameron.data.skills.length, 26);
+  assert.deepEqual(decameron.data.skills.filter((id) => !generic.skills.includes(id)), ['vercel-react-best-practices']);
   assert.equal(decameron.data.commands.length, 9);
   assert.deepEqual([...decameron.data.commands].sort(), [...generic.commands].sort());
   assert.equal(decameron.data.agents.length, 4);

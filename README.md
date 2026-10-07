@@ -7,8 +7,9 @@
 🇪🇸 [Español](docs/es/start-here.md) | 🇺🇸 [English](docs/en/start-here.md)
 
 Choose a language to start with the Decameron product documentation. The current
-production catalog contains 25 base Skills and 0 production Contextual Skills;
-the Generic Context Rules Engine is ready for future additions.
+production catalog contains 25 base Skills plus the `decameron`-only
+`vercel-react-best-practices` Skill; the Generic Context Rules Engine is ready
+for future additions.
 
 Skills encode the workflows, quality gates, and best practices that senior engineers use when building software. These ones are packaged so AI agents follow them consistently across every phase of development.
 

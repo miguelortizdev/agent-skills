@@ -6,18 +6,17 @@
 
 - 26 Skills productivos
 - 25 Skills base
-- 1 Contextual Skill productivo: `vercel-react-best-practices`
+- 1 Skill limitado al Profile: `vercel-react-best-practices` (solo decameron)
 
-Los Profiles `default` y `decameron` seleccionan la misma Foundation de 25
-Skills. `decameron` además selecciona MCP corporativos.
+El Profile `default` selecciona la Foundation de 25 Skills. `decameron` agrega
+`vercel-react-best-practices` y MCP corporativos.
 
 ## Skills Base Y Contextuales
 
-Los Skills base describen flujos de trabajo de ingeniería duraderos y siempre
-son seleccionados por los Profiles. Un Contextual Skill es un asset opcional del
-Registry que se selecciona a partir de facts acotados del proyecto. El catálogo
-productivo incluye el Skill de React y Next.js de Vercel, y el motor genérico está
-listo para futuras adiciones.
+Los Skills base describen flujos de trabajo de ingeniería duraderos y son
+seleccionados por ambos Profiles. Un Contextual Skill es un asset opcional del
+Registry que se selecciona a partir de facts acotados del proyecto. El Skill de
+Vercel está limitado al Profile y no se selecciona automáticamente por evidencia.
 
 ## Anatomy De Un Skill
 

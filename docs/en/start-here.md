@@ -10,8 +10,8 @@ ownership-safe installation, and a generic Context Rules Engine.
 
 Current production catalog:
 
-- 26 Skills: 25 base Skills and 1 Contextual Skill
-- 1 production Contextual Skill: `vercel-react-best-practices`
+- 26 Skills: 25 base Skills and 1 decameron-only Skill
+- no additional Skill in `default`; `decameron` adds `vercel-react-best-practices`
 - 9 Commands, 4 Agents, 7 References, and 6 Hosts
 
 ## Choose Your Path
