@@ -2,6 +2,14 @@
 
 **Production-grade engineering skills for AI coding agents.**
 
+## Decameron Documentation
+
+🇪🇸 [Español](docs/es/start-here.md) | 🇺🇸 [English](docs/en/start-here.md)
+
+Choose a language to start with the Decameron product documentation. The current
+production catalog contains 25 base Skills and 0 production Contextual Skills;
+the Generic Context Rules Engine is ready for future additions.
+
 Skills encode the workflows, quality gates, and best practices that senior engineers use when building software. These ones are packaged so AI agents follow them consistently across every phase of development.
 
 <a href="https://trendshift.io/repositories/25200" target="_blank"><img src="https://trendshift.io/api/badge/repositories/25200" alt="addyosmani%2Fagent-skills | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -61,8 +69,8 @@ npx skills add addyosmani/agent-skills --skill test-driven-development   # red-g
 ### Recommended Developer Workflow
 
 The repository installer supports a shared Global Foundation and a lightweight
-Project Context Overlay. Install the foundation once, then sync only detected
-technology Skills in each project. The `decameron` profile includes the full
+Project Context Overlay. Install the foundation once, then sync project context
+when contextual Skills are registered. The `decameron` profile includes the full
 25-Skill, 9-Command, 4-Agent, and 7-Reference foundation plus corporate MCP.
 
 ```bash
