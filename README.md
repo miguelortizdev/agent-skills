@@ -58,6 +58,32 @@ npx skills add addyosmani/agent-skills --skill interview-me              # requi
 npx skills add addyosmani/agent-skills --skill test-driven-development   # red-green-refactor, enforced
 ```
 
+### Recommended Developer Workflow
+
+The repository installer supports a shared Global Foundation and a lightweight
+Project Context Overlay. Install the foundation once, then sync only detected
+technology Skills in each project:
+
+```bash
+node scripts/install-agent-standard.js \
+  --global --host codex --profile decameron
+
+cd my-project
+
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  sync --host codex --profile decameron
+```
+
+Use a full project installation when the repository must be self-contained:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  --project --host codex --profile decameron
+```
+
+The three strategies are documented in
+[Installation Strategies](docs/installation.md#installation-strategies).
+
 > **Installing one skill?** A per-skill `npx` install copies only
 > `skills/<name>/`, not the repo-level `references/` directory. The skill still
 > works, but paths to supplementary shared checklists are unavailable. Use a

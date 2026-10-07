@@ -26,10 +26,11 @@ OpenShift guidance simultaneously.
 
 ## Scope And Dry Run
 
-Context detection runs for `--project` installations only. `--global` installs
-do not depend silently on the current working directory. Use dry-run to see the
-detected context, evidence, selected Skills, host, scope, and target files
-without writing anything:
+Context detection runs for project-scoped installations: both full `--project`
+installs and the project Context Overlay. `--global` installs do not depend
+silently on the current working directory. Use dry-run to see the detected
+context, evidence, selected Skills, host, scope, and target files without
+writing anything:
 
 ```bash
 node scripts/install-agent-standard.js \
@@ -40,6 +41,17 @@ Contextual Skills are recorded in the existing installation manifest. If a
 later project reinstall no longer matches a contextual rule, only unchanged
 files previously owned as contextual Skills are removed. Base Skills and user
 files remain intact.
+
+For an overlay, install the matching global foundation first and then run:
+
+```bash
+node scripts/install-agent-standard.js \
+  sync --host codex --profile decameron --dry-run
+```
+
+The overlay manifest records `mode: overlay`, the inherited host/profile, the
+detected context, evidence, and only files owned by contextual Skills. It does
+not claim ownership of global Skills, Commands, Agents, References, or MCP.
 
 ## Adding A Contextual Skill
 
