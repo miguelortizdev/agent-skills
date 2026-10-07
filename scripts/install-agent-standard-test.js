@@ -476,6 +476,33 @@ test('contextual dry-run explains evidence without writing and shared hosts pres
   assert.equal(fs.existsSync(skillFile), false);
 });
 
+test('installs all contextual Skills from a nested multi-stack monorepo', () => {
+  const root = makeSandbox();
+  fs.mkdirSync(path.join(root, 'frontend'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'backend'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'deploy', 'openshift'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'frontend', 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  fs.writeFileSync(path.join(root, 'frontend', 'next.config.ts'), 'export default {}\n');
+  fs.writeFileSync(path.join(root, 'backend', 'pom.xml'), '<dependency>org.springframework.boot</dependency>\n');
+  fs.writeFileSync(path.join(root, 'deploy', 'openshift', 'route.yaml'), 'apiVersion: route.openshift.io/v1\nkind: Route\n');
+  const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /Detected project context: nextjs, springBoot, openshift/);
+  for (const id of ['nextjs-vercel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
+    assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', id, 'SKILL.md')), true, id);
+  }
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
+  assert.deepEqual(manifest.contextualSkills.map((skill) => skill.id).sort(), [
+    'nextjs-vercel-engineering', 'openshift-engineering', 'spring-boot-engineering',
+  ]);
+  fs.rmSync(path.join(root, 'frontend'), { recursive: true, force: true });
+  const partial = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
+  assert.equal(partial.status, 0, partial.stdout + partial.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'spring-boot-engineering', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'openshift-engineering', 'SKILL.md')), true);
+});
+
 test('resolves Decameron command dependencies during installation', () => {
   const root = makeSandbox();
   const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');

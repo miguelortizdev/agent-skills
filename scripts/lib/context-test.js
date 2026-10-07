@@ -9,6 +9,7 @@ const path = require('node:path');
 const { afterEach, test } = require('node:test');
 const { detectProjectContext } = require('./context-detector');
 const { resolveContextualSkills } = require('./context-resolver');
+const canonicalCatalog = require('../../registry/catalog.json');
 
 const roots = [];
 
@@ -106,4 +107,32 @@ test('detects bounded workspace manifests without traversing excluded directorie
     'node_modules/ignored/package.json': JSON.stringify({ dependencies: { next: '^15.0.0' } }),
   });
   assert.equal(detectProjectContext(root).frameworks.nextjs.version, '^15.0.0');
+});
+
+test('resolves nested monorepo signals through the canonical catalog', () => {
+  const root = project({
+    'frontend/package.json': JSON.stringify({ dependencies: { next: '^15.0.0' } }),
+    'frontend/next.config.ts': 'export default {}',
+    'backend/pom.xml': '<dependency>org.springframework.boot</dependency>',
+    'deploy/openshift/route.yaml': 'apiVersion: route.openshift.io/v1\nkind: Route\n',
+  });
+  const resolved = resolveContextualSkills(detectProjectContext(root), canonicalCatalog);
+  assert.deepEqual(resolved.map((entry) => entry.id).sort(), [
+    'nextjs-vercel-engineering',
+    'openshift-engineering',
+    'spring-boot-engineering',
+  ]);
+});
+
+test('resolves nested Laravel manifests and keeps generic Kubernetes out', () => {
+  const laravel = project({
+    'services/api/composer.json': JSON.stringify({ require: { 'laravel/framework': '^10.0' } }),
+    'services/api/artisan': '#!/usr/bin/env php',
+  });
+  assert.deepEqual(resolveContextualSkills(detectProjectContext(laravel), canonicalCatalog).map((entry) => entry.id), ['laravel-engineering']);
+  const kubernetes = project({
+    'deploy/k8s/deployment.yaml': 'apiVersion: apps/v1\nkind: Deployment\n',
+    'deploy/k8s/service.yaml': 'kind: Service\n',
+  });
+  assert.deepEqual(resolveContextualSkills(detectProjectContext(kubernetes), canonicalCatalog), []);
 });

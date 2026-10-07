@@ -123,4 +123,10 @@ test('rejects unknown contextual matcher types and unsafe paths', () => {
   result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /invalid contextual file matcher/);
+
+  data.assets[0].appliesWhen = { any: [{ type: 'file', match: 'unknown', paths: ['package.json'] }] };
+  fs.writeFileSync(file, JSON.stringify(data));
+  result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /invalid contextual matcher mode/);
 });

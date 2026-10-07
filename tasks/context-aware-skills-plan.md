@@ -24,21 +24,21 @@ model.
 ## Task List
 
 ### Phase 1: Contract and detection
-- [ ] Add contextual catalog metadata and strict validation.
-- [ ] Implement bounded deterministic context detection.
-- [ ] Implement registry-driven context resolution with evidence.
-- [ ] Add unit fixtures for positive and false-positive stack signals.
+- [x] Add contextual catalog metadata and strict validation.
+- [x] Implement bounded deterministic context detection.
+- [x] Implement registry-driven context resolution with evidence.
+- [x] Add unit fixtures for positive and false-positive stack signals.
 
 ### Phase 2: Canonical Skills and installer
-- [ ] Add Next.js, Laravel, Spring Boot, and OpenShift Skills.
-- [ ] Add contextual Skills to the canonical catalog without changing profiles.
-- [ ] Integrate project-only resolution into the installation plan.
-- [ ] Reconcile removed contextual Skills through existing ownership safety.
+- [x] Add Next.js, Laravel, Spring Boot, and OpenShift Skills.
+- [x] Add contextual Skills to the canonical catalog without changing profiles.
+- [x] Integrate project-only resolution into the installation plan.
+- [x] Reconcile removed contextual Skills through existing ownership safety.
 
 ### Phase 3: Verification and docs
-- [ ] Add dry-run, multi-stack, monorepo, lifecycle, and six-host coverage.
-- [ ] Document context detection, support, troubleshooting, and extension.
-- [ ] Run the unified test suite, routing evals, validators, parity, and diff checks.
+- [x] Add dry-run, multi-stack, monorepo, lifecycle, and six-host coverage.
+- [x] Document context detection, support, troubleshooting, and extension.
+- [x] Run the unified test suite, routing evals, validators, parity, and diff checks.
 
 ## Verification
 

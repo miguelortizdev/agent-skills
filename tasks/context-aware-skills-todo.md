@@ -1,14 +1,14 @@
 # Context-Aware Skills Tasks
 
-- [ ] Contextual catalog contract and validator
-- [ ] Context detector and resolver
-- [ ] Four contextual Skills
-- [ ] Installer integration and ownership reconciliation
-- [ ] Lifecycle and multi-host tests
-- [ ] Documentation and final regression
+- [x] Contextual catalog contract and validator
+- [x] Context detector and resolver
+- [x] Four contextual Skills
+- [x] Installer integration and ownership reconciliation
+- [x] Lifecycle and multi-host tests
+- [x] Documentation and final regression
 
 ## Checkpoint
 
-- [ ] Context unit tests pass
-- [ ] Existing foundation tests pass
-- [ ] Final unified suite and routing evals pass
+- [x] Context unit tests pass
+- [x] Existing foundation tests pass
+- [x] Final unified suite and routing evals pass
