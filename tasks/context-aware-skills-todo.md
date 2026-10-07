@@ -2,7 +2,7 @@
 
 - [x] Contextual catalog contract and validator
 - [x] Context detector and resolver
-- [x] Four contextual Skills
+- [x] Generic contextual Skill extensibility fixtures; no production contextual Skills enabled
 - [x] Installer integration and ownership reconciliation
 - [x] Lifecycle and multi-host tests
 - [x] Documentation and final regression

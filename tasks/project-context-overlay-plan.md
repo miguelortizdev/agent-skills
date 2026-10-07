@@ -9,10 +9,10 @@ Existing `--global` and `--project` behavior remains unchanged.
 
 ## Baseline
 
-- Unified tests: 257/257
-- Routing: 101/101
-- Registry: 53 assets, 6 hosts
-- Skills: 29 total, including 4 contextual Skills
+- Unified tests: 277/277
+- Routing: 89/89
+- Registry: 49 assets, 6 hosts
+- Skills: 25 total, including 0 production contextual Skills
 - Upstream parity: 210/210
 - Adapter drift: PASS
 - Working tree: clean

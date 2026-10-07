@@ -30,8 +30,8 @@ model.
 - [x] Add unit fixtures for positive, false-positive, composed, and future-rule cases.
 
 ### Phase 2: Canonical Skills and installer
-- [x] Add Next.js, Laravel, Spring Boot, and OpenShift Skills.
-- [x] Add contextual Skills to the canonical catalog without changing profiles.
+- [x] Verify technology-specific rules through synthetic Registry fixtures only.
+- [x] Keep the production catalog aligned with the upstream/base Skill set.
 - [x] Integrate project-only resolution into the installation plan.
 - [x] Reconcile removed contextual Skills through existing ownership safety.
 
@@ -42,7 +42,7 @@ model.
 
 ## Verification
 
-- Baseline: 241/241 tests, routing 89/89, clean worktree.
+- Current verification: 277/277 tests, routing 89/89, clean worktree after commit.
 - Final: unified suite includes all context tests, generic detector facts remain
   technology-neutral, no-context behavior remains unchanged, and temporary
   project/global acceptance workspaces pass.

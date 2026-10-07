@@ -5,6 +5,10 @@ its foundation. Project installation reads bounded local facts, resolves
 declarative rules from `registry/catalog.json`, and sends the resulting
 canonical Skills through the existing installer and adapters.
 
+The Generic Context Rules Engine is enabled and ready for future
+technology-specific Skills. The current production catalog intentionally has no
+contextual Skills enabled; it contains the 25 upstream/base Skills only.
+
 ## Detection
 
 Detection is deterministic and local. It does not use an LLM, the network,
@@ -18,17 +22,8 @@ The detector does not know what Next.js, Laravel, Spring Boot, OpenShift, or any
 future technology is. Technology knowledge belongs only in the Registry rule
 attached to a contextual Skill.
 
-Supported contextual Skills:
-
-| Skill | Evidence |
-| --- | --- |
-| `nextjs-vercel-engineering` | `next` dependency or `next.config.*` |
-| `laravel-engineering` | `laravel/framework` or Laravel markers |
-| `spring-boot-engineering` | Spring Boot markers in Maven/Gradle files |
-| `openshift-engineering` | OpenShift API/resources, not generic Kubernetes |
-
-Multiple matches are additive. A project can receive Next.js, Spring Boot, and
-OpenShift guidance simultaneously.
+Production contextual Skills: none. When a future contextual Skill is registered,
+multiple matches will be additive and a project may receive more than one.
 
 ## Scope And Dry Run
 
@@ -64,12 +59,12 @@ not claim ownership of global Skills, Commands, Agents, References, or MCP.
 1. Create a standard `skills/<name>/SKILL.md` with the normal Skill anatomy.
 2. Register it as a custom `skill` with `contextual: true` in `registry/catalog.json`.
 3. Declare `appliesWhen` using the generic rule DSL below.
-4. Add contextual rule tests/fixtures for positive, negative, and multi-stack cases.
+4. Add contextual rule tests/fixtures and routing evals.
 5. Run registry, Skill, installer, and full-suite validation.
 
 No Context Detector, Context Resolver, installer, or adapter changes are
 required for a new technology. They consume generic facts and resolved
-canonical asset IDs.
+canonical asset IDs. The four steps above are the complete extension path.
 
 ## Rule DSL
 
@@ -105,7 +100,6 @@ installer, and adapter code must not change for a new technology.
 
 ## Troubleshooting
 
-- A false positive usually means a rule is too broad. Prefer a strong manifest dependency or an OpenShift-specific marker.
+- A false positive usually means a rule is too broad. Prefer strong manifest, path, or text evidence.
 - A missing match should be reported with the expected local evidence and added as a focused detector fixture.
-- `vercel.json` is not required for Next.js guidance; Vercel-specific advice is only appropriate when Vercel configuration is present.
 - Global installs intentionally do not infer context from the current directory.
