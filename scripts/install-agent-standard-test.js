@@ -417,7 +417,7 @@ test('adds contextual Skills with explainable evidence and reconciles removal', 
   fs.writeFileSync(path.join(root, 'next.config.ts'), 'export default {}\n');
   const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(install.status, 0, install.stdout + install.stderr);
-  assert.match(install.stdout, /Detected project context: nextjs/);
+  assert.match(install.stdout, /Detected project context: nextjs-vercel-engineering/);
   assert.match(install.stdout, /nextjs-vercel-engineering/);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering', 'SKILL.md')), true);
   let manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
@@ -458,7 +458,7 @@ test('contextual dry-run explains evidence without writing and shared hosts pres
   const before = relativeFiles(root).sort();
   const dry = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--dry-run');
   assert.equal(dry.status, 0, dry.stdout + dry.stderr);
-  assert.match(dry.stdout, /Detected project context: nextjs/);
+  assert.match(dry.stdout, /Detected project context: nextjs-vercel-engineering/);
   assert.match(dry.stdout, /package.json -> dependency "next"/);
   assert.deepEqual(relativeFiles(root).sort(), before);
 
@@ -487,7 +487,7 @@ test('installs all contextual Skills from a nested multi-stack monorepo', () => 
   fs.writeFileSync(path.join(root, 'deploy', 'openshift', 'route.yaml'), 'apiVersion: route.openshift.io/v1\nkind: Route\n');
   const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /Detected project context: nextjs, springBoot, openshift/);
+  assert.match(result.stdout, /Detected project context: nextjs-vercel-engineering, spring-boot-engineering, openshift-engineering/);
   for (const id of ['nextjs-vercel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
     assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', id, 'SKILL.md')), true, id);
   }

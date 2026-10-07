@@ -102,7 +102,7 @@ test('accepts declarative contextual skill matchers', () => {
   const root = makeSandbox();
   const { file, data } = catalog(root);
   data.assets[0].contextual = true;
-  data.assets[0].appliesWhen = { any: [{ type: 'dependency', file: 'package.json', names: ['example'] }] };
+  data.assets[0].appliesWhen = { anyOf: [{ type: 'dependency', file: 'package.json', names: ['example'] }] };
   fs.writeFileSync(file, JSON.stringify(data));
   const result = run(root);
   assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -112,21 +112,43 @@ test('rejects unknown contextual matcher types and unsafe paths', () => {
   const root = makeSandbox();
   const { file, data } = catalog(root);
   data.assets[0].contextual = true;
-  data.assets[0].appliesWhen = { any: [{ type: 'regex', paths: ['../outside'] }] };
+  data.assets[0].appliesWhen = { anyOf: [{ type: 'regex', paths: ['../outside'] }] };
   fs.writeFileSync(file, JSON.stringify(data));
   let result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /unknown contextual matcher type/);
 
-  data.assets[0].appliesWhen = { any: [{ type: 'file', paths: ['../outside'] }] };
+  data.assets[0].appliesWhen = { anyOf: [{ type: 'file', paths: ['../outside'] }] };
   fs.writeFileSync(file, JSON.stringify(data));
   result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /invalid contextual file matcher/);
 
-  data.assets[0].appliesWhen = { any: [{ type: 'file', match: 'unknown', paths: ['package.json'] }] };
+  data.assets[0].appliesWhen = { anyOf: [{ type: 'file', match: 'unknown', paths: ['package.json'] }] };
   fs.writeFileSync(file, JSON.stringify(data));
   result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /invalid contextual matcher mode/);
+});
+
+test('accepts and rejects composed contextual rules', () => {
+  const root = makeSandbox();
+  const { file, data } = catalog(root);
+  data.assets[0].contextual = true;
+  data.assets[0].appliesWhen = {
+    allOf: [
+      { type: 'file', paths: ['platform.yaml'] },
+      { anyOf: [{ type: 'text', files: ['platform.yaml'], patterns: ['kind: FuturePlatform'] }] },
+    ],
+    noneOf: [{ type: 'text', files: ['platform.yaml'], patterns: ['legacy: true'] }],
+  };
+  fs.writeFileSync(file, JSON.stringify(data));
+  let result = run(root);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+
+  data.assets[0].appliesWhen = { anyOf: [{ type: 'file', paths: [] }] };
+  fs.writeFileSync(file, JSON.stringify(data));
+  result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /must contain at least one rule|invalid file matcher/);
 });

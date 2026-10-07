@@ -26,8 +26,19 @@ function project(files) {
 
 function registry() {
   return { assets: [
-    { id: 'nextjs-vercel-engineering', type: 'skill', contextual: true, appliesWhen: { any: [{ type: 'dependency', file: 'package.json', names: ['next'] }, { type: 'file', paths: ['next.config.ts'] }] } },
-    { id: 'spring-boot-engineering', type: 'skill', contextual: true, appliesWhen: { any: [{ type: 'text', files: ['pom.xml'], patterns: ['org.springframework.boot'] }] } },
+    { id: 'nextjs-vercel-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'dependency', file: 'package.json', names: ['next'] }, { type: 'file', paths: ['next.config.ts'] }] } },
+    { id: 'spring-boot-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', files: ['pom.xml'], patterns: ['org.springframework.boot'] }] } },
+  ] };
+}
+
+function genericRegistry() {
+  return { assets: [
+    { id: 'docker-fixture', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'file', match: 'basename', paths: ['Dockerfile'] }] } },
+    { id: 'redis-fixture', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', match: 'basename', files: ['docker-compose.yml'], patterns: ['redis:'] }] } },
+    { id: 'future-framework-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'dependency', file: 'package.json', names: ['future-framework'] }, { type: 'file', match: 'basename', paths: ['future.config.js'] }] } },
+    { id: 'future-platform-engineering', type: 'skill', contextual: true, appliesWhen: { allOf: [{ type: 'file', paths: ['platform.yaml'] }, { type: 'text', files: ['platform.yaml'], patterns: ['kind: FuturePlatform'] }], noneOf: [{ type: 'text', files: ['platform.yaml'], patterns: ['legacy: true'] }] } },
+    { id: 'future-composed-engineering', type: 'skill', contextual: true, appliesWhen: { allOf: [{ type: 'file', paths: ['special.config'] }, { type: 'dependency', file: 'package.json', names: ['future-lib'] }] } },
+    { id: 'standalone-react-fixture', type: 'skill', contextual: true, appliesWhen: { allOf: [{ type: 'dependency', file: 'package.json', names: ['react'] }], noneOf: [{ type: 'dependency', file: 'package.json', names: ['next'] }] } },
   ] };
 }
 
@@ -35,44 +46,45 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('detects Next.js from package metadata and config evidence', () => {
+test('resolves Next.js from package metadata and config evidence', () => {
   const root = project({
     'package.json': JSON.stringify({ dependencies: { next: '^15.0.0', react: '^19.0.0' } }),
     'next.config.ts': 'export default {}',
   });
   const context = detectProjectContext(root);
-  assert.equal(context.frameworks.nextjs.version, '^15.0.0');
-  assert.deepEqual(context.frameworks.nextjs.evidence, ['package.json -> dependency "next"', 'next.config.ts']);
+  const resolved = resolveContextualSkills(context, canonicalCatalog);
+  assert.deepEqual(resolved.map((entry) => entry.id), ['nextjs-vercel-engineering']);
+  assert.deepEqual(resolved[0].evidence, ['package.json -> dependency "next"', 'next.config.ts']);
 });
 
-test('does not detect Next.js for a plain React project', () => {
+test('does not resolve Next.js for a plain React project', () => {
   const root = project({ 'package.json': JSON.stringify({ dependencies: { react: '^19.0.0' } }) });
-  assert.equal(detectProjectContext(root).frameworks.nextjs, undefined);
+  assert.equal(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).some((entry) => entry.id === 'nextjs-vercel-engineering'), false);
 });
 
-test('detects Laravel but not Symfony', () => {
+test('resolves Laravel but not Symfony', () => {
   const root = project({
     'composer.json': JSON.stringify({ require: { 'laravel/framework': '^10.0' } }),
     artisan: '#!/usr/bin/env php',
   });
-  assert.equal(detectProjectContext(root).frameworks.laravel.version, '^10.0');
+  assert.deepEqual(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).map((entry) => entry.id), ['laravel-engineering']);
 
   const symfony = project({ 'composer.json': JSON.stringify({ require: { 'symfony/framework-bundle': '^7.0' } }) });
-  assert.equal(detectProjectContext(symfony).frameworks.laravel, undefined);
+  assert.equal(resolveContextualSkills(detectProjectContext(symfony), canonicalCatalog).some((entry) => entry.id === 'laravel-engineering'), false);
 });
 
-test('detects Spring Boot but not plain Maven', () => {
+test('resolves Spring Boot but not plain Maven', () => {
   const root = project({ 'pom.xml': '<dependency>org.springframework.boot</dependency>' });
-  assert.ok(detectProjectContext(root).frameworks.springBoot);
+  assert.equal(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).some((entry) => entry.id === 'spring-boot-engineering'), true);
   const plain = project({ 'pom.xml': '<artifactId>commons-lang</artifactId>' });
-  assert.equal(detectProjectContext(plain).frameworks.springBoot, undefined);
+  assert.equal(resolveContextualSkills(detectProjectContext(plain), canonicalCatalog).some((entry) => entry.id === 'spring-boot-engineering'), false);
 });
 
-test('detects OpenShift markers but not generic Kubernetes', () => {
+test('resolves OpenShift markers but not generic Kubernetes', () => {
   const openshift = project({ 'openshift/route.yaml': 'apiVersion: route.openshift.io/v1\nkind: Route\n' });
-  assert.ok(detectProjectContext(openshift).platforms.openshift);
+  assert.equal(resolveContextualSkills(detectProjectContext(openshift), canonicalCatalog).some((entry) => entry.id === 'openshift-engineering'), true);
   const kubernetes = project({ 'deployment.yaml': 'apiVersion: apps/v1\nkind: Deployment\n', 'service.yaml': 'kind: Service\n' });
-  assert.equal(detectProjectContext(kubernetes).platforms.openshift, undefined);
+  assert.equal(resolveContextualSkills(detectProjectContext(kubernetes), canonicalCatalog).some((entry) => entry.id === 'openshift-engineering'), false);
 });
 
 test('resolves multiple contextual Skills with deterministic evidence', () => {
@@ -93,10 +105,9 @@ test('resolves a multi-stack project without duplicate contextual Skills', () =>
     'openshift/route.yaml': 'apiVersion: route.openshift.io/v1\nkind: Route\n',
   });
   const context = detectProjectContext(root);
-  context.signals.push({ type: 'text', file: 'openshift/route.yaml', pattern: 'route.openshift.io/' });
   const resolved = resolveContextualSkills(context, { assets: [
     ...registry().assets,
-    { id: 'openshift-engineering', type: 'skill', contextual: true, appliesWhen: { any: [{ type: 'text', files: ['openshift/route.yaml'], patterns: ['route.openshift.io/'] }] } },
+    { id: 'openshift-engineering', type: 'skill', contextual: true, appliesWhen: { anyOf: [{ type: 'text', files: ['openshift/route.yaml'], patterns: ['route.openshift.io/'] }] } },
   ] });
   assert.deepEqual([...new Set(resolved.map((entry) => entry.id))].sort(), ['nextjs-vercel-engineering', 'openshift-engineering', 'spring-boot-engineering']);
 });
@@ -106,7 +117,7 @@ test('detects bounded workspace manifests without traversing excluded directorie
     'packages/web/package.json': JSON.stringify({ dependencies: { next: '^15.0.0' } }),
     'node_modules/ignored/package.json': JSON.stringify({ dependencies: { next: '^15.0.0' } }),
   });
-  assert.equal(detectProjectContext(root).frameworks.nextjs.version, '^15.0.0');
+  assert.equal(resolveContextualSkills(detectProjectContext(root), canonicalCatalog).some((entry) => entry.id === 'nextjs-vercel-engineering'), true);
 });
 
 test('resolves nested monorepo signals through the canonical catalog', () => {
@@ -135,4 +146,71 @@ test('resolves nested Laravel manifests and keeps generic Kubernetes out', () =>
     'deploy/k8s/service.yaml': 'kind: Service\n',
   });
   assert.deepEqual(resolveContextualSkills(detectProjectContext(kubernetes), canonicalCatalog), []);
+});
+
+test('scans generic filesystem facts without technology-specific context fields', () => {
+  const root = project({
+    'infra/Dockerfile': 'FROM node:22\n',
+    'docker-compose.yml': 'services:\n  cache:\n    image: redis:7\n',
+    'package.json': JSON.stringify({ dependencies: { 'future-framework': '^1.0.0' } }),
+    'infrastructure/special-platform/.keep': '',
+  });
+  const context = detectProjectContext(root);
+  assert.equal('frameworks' in context, false);
+  assert.equal('platforms' in context, false);
+  assert.ok(context.files.includes('infra/Dockerfile'));
+  assert.ok(context.directories.includes('infrastructure/special-platform'));
+  assert.ok(context.dependencies.some((dependency) => dependency.name === 'future-framework'));
+  assert.ok(context.texts.some((text) => text.file === 'docker-compose.yml'));
+  assert.deepEqual(resolveContextualSkills(context, genericRegistry()).map((entry) => entry.id), [
+    'docker-fixture',
+    'redis-fixture',
+    'future-framework-engineering',
+  ]);
+});
+
+test('does not read secret files or oversized files', () => {
+  const root = project({
+    '.env': 'FUTURE_SECRET_MARKER=true\n',
+    'credentials.json': '{"token":"secret"}\n',
+    'large.txt': 'x'.repeat(512 * 1024 + 1),
+    'visible.txt': 'safe\n',
+  });
+  const context = detectProjectContext(root);
+  assert.ok(context.files.includes('.env'));
+  assert.ok(context.files.includes('credentials.json'));
+  assert.ok(context.files.includes('large.txt'));
+  assert.ok(context.texts.some((text) => text.file === 'visible.txt'));
+  assert.equal(context.texts.some((text) => text.file === '.env'), false);
+  assert.equal(context.texts.some((text) => text.file === 'credentials.json'), false);
+  assert.equal(context.texts.some((text) => text.file === 'large.txt'), false);
+});
+
+test('evaluates generic path and logical composition rules', () => {
+  const root = project({
+    'platform.yaml': 'kind: FuturePlatform\n',
+    'special.config': '',
+    'package.json': JSON.stringify({ dependencies: { 'future-lib': '1.0.0', react: '^19.0.0' } }),
+  });
+  const resolved = resolveContextualSkills(detectProjectContext(root), genericRegistry());
+  assert.deepEqual(resolved.map((entry) => entry.id), [
+    'future-platform-engineering',
+    'future-composed-engineering',
+    'standalone-react-fixture',
+  ]);
+
+  fs.writeFileSync(path.join(root, 'platform.yaml'), 'kind: FuturePlatform\nlegacy: true\n');
+  fs.rmSync(path.join(root, 'special.config'));
+  const changed = resolveContextualSkills(detectProjectContext(root), genericRegistry());
+  assert.deepEqual(changed.map((entry) => entry.id), ['standalone-react-fixture']);
+});
+
+test('activates future rules from dependency or file evidence without core changes', () => {
+  const dependency = project({ 'package.json': JSON.stringify({ dependencies: { 'future-framework': '1.0.0' } }) });
+  const file = project({ 'future.config.js': 'module.exports = {}\n' });
+  const empty = project({ 'package.json': JSON.stringify({ dependencies: { react: '^19.0.0' } }) });
+  const ids = (root) => resolveContextualSkills(detectProjectContext(root), genericRegistry()).map((entry) => entry.id);
+  assert.deepEqual(ids(dependency), ['future-framework-engineering']);
+  assert.deepEqual(ids(file), ['future-framework-engineering']);
+  assert.deepEqual(ids(empty), ['standalone-react-fixture']);
 });
