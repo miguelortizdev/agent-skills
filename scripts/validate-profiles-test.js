@@ -39,6 +39,10 @@ function readProfile(root) {
   return { file, data: JSON.parse(fs.readFileSync(file, 'utf8')) };
 }
 
+function readDefaultProfile(root) {
+  return JSON.parse(fs.readFileSync(path.join(root, 'profiles', 'default.json'), 'utf8'));
+}
+
 afterEach(() => {
   for (const root of sandboxes.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
@@ -47,6 +51,22 @@ test('accepts profiles that reference catalog assets by matching type', () => {
   const result = run(makeSandbox());
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /Profiles valid: 2 profiles/);
+});
+
+test('decameron selects the complete engineering foundation plus corporate MCP', () => {
+  const root = makeSandbox();
+  const decameron = readProfile(root);
+  const generic = readDefaultProfile(root);
+  assert.equal(decameron.data.skills.length, 25);
+  assert.deepEqual([...decameron.data.skills].sort(), [...generic.skills].sort());
+  assert.equal(decameron.data.commands.length, 9);
+  assert.deepEqual([...decameron.data.commands].sort(), [...generic.commands].sort());
+  assert.equal(decameron.data.agents.length, 4);
+  assert.deepEqual([...decameron.data.agents].sort(), [...generic.agents].sort());
+  assert.equal(decameron.data.references.length, 7);
+  assert.deepEqual([...decameron.data.references].sort(), [...generic.references].sort());
+  assert.deepEqual(decameron.data.mcp.sort(), ['context7', 'kubernetes']);
+  assert.equal(run(root).status, 0);
 });
 
 test('rejects missing asset references', () => {

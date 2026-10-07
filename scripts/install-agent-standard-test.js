@@ -78,7 +78,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.claude', 'commands', 'plan.md'),
       extension: '.md',
       directory: path.join('.claude', 'commands'),
-      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'review.md', 'ship.md'],
+      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md'],
       includes: ['description:', 'Invoke the agent-skills:planning-and-task-breakdown skill.'],
     },
     {
@@ -86,7 +86,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.opencode', 'commands', 'plan.md'),
       extension: '.md',
       directory: path.join('.opencode', 'commands'),
-      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'review.md', 'ship.md'],
+      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md'],
       includes: ['description:', 'Invoke the planning-and-task-breakdown skill.'],
     },
     {
@@ -94,7 +94,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.opencode', 'commands', 'plan.md'),
       extension: '.md',
       directory: path.join('.opencode', 'commands'),
-      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'review.md', 'ship.md'],
+      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md'],
       includes: ['description:', 'Invoke the planning-and-task-breakdown skill.'],
     },
     {
@@ -102,7 +102,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.gemini', 'commands', 'planning.toml'),
       extension: '.toml',
       directory: path.join('.gemini', 'commands'),
-      filenames: ['spec.toml', 'planning.toml', 'build.toml', 'test.toml', 'review.toml', 'ship.toml'],
+      filenames: ['spec.toml', 'planning.toml', 'build.toml', 'test.toml', 'constraints.toml', 'review.toml', 'webperf.toml', 'code-simplify.toml', 'ship.toml'],
       includes: ['description = "Break work into small verifiable tasks', 'prompt = """'],
     },
   ];
@@ -848,6 +848,7 @@ test('supports contextual overlays for every host without foundation duplication
     assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'api-and-interface-design')), false, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'commands')), false, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'agents')), false, host);
+    assert.equal(fs.existsSync(path.join(root, destination, 'references')), false, host);
     assert.equal(fs.existsSync(path.join(root, mcpPath)), false, host);
     assert.equal(fs.existsSync(path.join(home, globalDestination, 'skills', 'api-and-interface-design', 'SKILL.md')), true, `${host} foundation`);
   }
@@ -905,4 +906,37 @@ test('accepts legacy manifests without mode and leaves overlays intact after glo
   fs.writeFileSync(overlayManifestPath, JSON.stringify(overlayManifest));
   const projectReinstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', { env: { HOME: home } });
   assert.equal(projectReinstall.status, 0, projectReinstall.stdout + projectReinstall.stderr);
+});
+
+test('materializes the complete Decameron foundation globally with explicit command fallbacks', () => {
+  const cases = [
+    { host: 'claude', root: '.claude', agents: '.claude', references: '.claude', commandsPath: '.claude', commands: 'native', mcp: '.claude.json' },
+    { host: 'codex', root: '.agents', agents: '.codex', references: '.agents', commands: 'fallback', mcp: '.codex/config.toml' },
+    { host: 'cursor', root: '.cursor', agents: '.cursor', references: '.cursor', commands: 'limited', mcp: '.cursor/mcp.json' },
+    { host: 'gemini', root: '.gemini', agents: '.gemini', references: '.gemini', commandsPath: '.gemini', commands: 'native', mcp: '.gemini/settings.json' },
+    { host: 'opencode', root: '.config/opencode', agents: '.config/opencode', references: '.config/opencode', commandsPath: '.config/opencode', commands: 'native', mcp: '.config/opencode/opencode.json' },
+    { host: 'openchamber', root: '.config/opencode', agents: '.config/opencode', references: '.config/opencode', commandsPath: '.config/opencode', commands: 'native', mcp: '.config/opencode/opencode.json' },
+  ];
+  for (const expected of cases) {
+    const root = makeSandbox();
+    const home = makeSandbox();
+    const hostRegistry = JSON.parse(fs.readFileSync(path.join(ROOT, 'registry', 'hosts.json'), 'utf8'));
+    const host = hostRegistry.hosts.find((entry) => entry.id === expected.host);
+    const adapter = JSON.parse(fs.readFileSync(path.join(ROOT, host.adapterPath, 'adapter.json'), 'utf8'));
+    assert.equal(adapter.globalCommandSupport, expected.commands, `${expected.host} global Command metadata`);
+    const result = run(root, '--host', expected.host, '--profile', 'decameron', '--global', { env: { HOME: home } });
+    assert.equal(result.status, 0, `${expected.host}: ${result.stdout}${result.stderr}`);
+    const manifest = JSON.parse(fs.readFileSync(path.join(home, '.agent-standard', 'installations', `${expected.host}.json`), 'utf8'));
+    assert.equal(manifest.mode, 'global');
+    assert.equal(manifest.profile, 'decameron');
+    assert.equal(manifest.contextualSkills.length, 0);
+    assert.equal(fs.readdirSync(path.join(home, expected.root, 'skills')).length, 25, `${expected.host} base Skills`);
+    assert.equal(fs.readdirSync(path.join(home, expected.agents, 'agents')).length, 4, `${expected.host} Agents`);
+    assert.equal(fs.readdirSync(path.join(home, expected.references, 'references')).length, 7, `${expected.host} References`);
+    assert.equal(manifest.mcp.length, 2, `${expected.host} MCP`);
+    if (expected.commands === 'native') assert.equal(fs.readdirSync(path.join(home, expected.commandsPath, 'commands')).length, 9, `${expected.host} Commands`);
+    if (expected.commands === 'fallback') assert.equal(fs.existsSync(path.join(home, expected.root, 'commands')), false, `${expected.host} Commands`);
+    if (expected.commands === 'limited') assert.equal(fs.existsSync(path.join(home, expected.root, 'commands')), false, `${expected.host} Commands`);
+    assert.equal(fs.existsSync(path.join(home, expected.mcp)), true, `${expected.host} MCP config`);
+  }
 });
