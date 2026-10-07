@@ -36,6 +36,7 @@ function validateContextRules(asset) {
   if (!Array.isArray(rules) || rules.length === 0) throw new Error(`contextual skill requires non-empty appliesWhen.any: ${asset.id}`);
   for (const rule of rules) {
     if (!['dependency', 'file', 'text'].includes(rule.type)) throw new Error(`unknown contextual matcher type for ${asset.id}: ${rule.type}`);
+    if (rule.match !== undefined && !['basename', 'relative', 'suffix'].includes(rule.match)) throw new Error(`invalid contextual matcher mode for ${asset.id}: ${rule.match}`);
     if (rule.type === 'dependency') {
       if (!Array.isArray(rule.names) || rule.names.length === 0 || rule.names.some((name) => typeof name !== 'string' || !name)) throw new Error(`invalid dependency matcher for ${asset.id}`);
       if (rule.file !== undefined) { if (path.isAbsolute(rule.file) || rule.file.includes('..')) throw new Error(`invalid contextual matcher path for ${asset.id}`); }

@@ -1,10 +1,15 @@
 'use strict';
 
 function matchingSignals(context, rule) {
+  const matchesPath = (actual, expected) => {
+    if (rule.match === 'basename') return actual.split('/').pop() === expected.split('/').pop();
+    if (rule.match === 'suffix') return actual === expected || actual.endsWith(`/${expected}`);
+    return actual === expected;
+  };
   return context.signals.filter((signal) => {
-    if (rule.type === 'dependency') return signal.type === 'dependency' && rule.names.includes(signal.name) && (!rule.file || rule.file === signal.file);
-    if (rule.type === 'file') return signal.type === 'file' && rule.paths.includes(signal.path);
-    if (rule.type === 'text') return signal.type === 'text' && rule.files.includes(signal.file) && rule.patterns.includes(signal.pattern);
+    if (rule.type === 'dependency') return signal.type === 'dependency' && rule.names.includes(signal.name) && (!rule.file || matchesPath(signal.file, rule.file));
+    if (rule.type === 'file') return signal.type === 'file' && rule.paths.some((file) => matchesPath(signal.path, file));
+    if (rule.type === 'text') return signal.type === 'text' && rule.files.some((file) => matchesPath(signal.file, file)) && rule.patterns.includes(signal.pattern);
     return false;
   });
 }
