@@ -53,6 +53,7 @@
   "mcpConfig": {
     "format": "opencode-json",
     "projectPath": "opencode.json",
+    "projectPaths": [".opencode/opencode.json", "opencode.json"],
     "globalPath": ".config/opencode/opencode.json",
     "rootKey": "mcp",
     "nestedRootKey": "servers"

@@ -4,9 +4,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const { validate } = require('./lib/json-schema');
 
 const ROOT = path.resolve(__dirname, '..');
 const FILE = path.join(ROOT, 'mcp', 'registry.json');
+const SCHEMA_FILE = path.join(ROOT, 'mcp', 'schema.json');
 const SECRET_FIELD = /(?:api[_-]?key|client[_-]?secret|password|passwd|secret|token|credential|authorization)/i;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const TRANSPORTS = new Set(['stdio', 'http']);
@@ -19,8 +21,17 @@ function readRegistry() {
   }
 }
 
+function readSchema() {
+  try {
+    return JSON.parse(fs.readFileSync(SCHEMA_FILE, 'utf8'));
+  } catch (error) {
+    throw new Error(`mcp/schema.json: invalid JSON (${error.message})`);
+  }
+}
+
 function main() {
   const registry = readRegistry();
+  try { validate(registry, readSchema()); } catch (error) { throw new Error(`registry does not match mcp/schema.json: ${error.message}`); }
   if (registry.schemaVersion !== 1) throw new Error('schemaVersion must be 1');
   if (!Array.isArray(registry.servers) || registry.servers.length === 0) throw new Error('servers must be a non-empty array');
   const ids = new Set();

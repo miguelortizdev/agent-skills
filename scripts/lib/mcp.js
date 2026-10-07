@@ -120,18 +120,28 @@ function renderCodexBlock(server) {
   if (server.transport === 'stdio') {
     lines.push(`command = ${tomlString(server.command)}`);
     lines.push(`args = ${tomlString(server.args)}`);
-    if (Object.keys(server.env || {}).length) lines.push(`env_vars = ${tomlString(Object.values(server.env).map((reference) => reference.name))}`);
+    const env = Object.entries(server.env || {});
+    const mappings = env.filter(([key, reference]) => key !== reference.name);
+    if (mappings.length) throw new Error(`Codex cannot safely represent STDIO environment mapping '${mappings[0][0]} <- ${mappings[0][1].name}'.`);
+    if (env.length) lines.push(`env_vars = ${tomlString(env.map(([, reference]) => reference.name))}`);
   } else {
     lines.push(`url = ${tomlString(server.url)}`);
     const headers = Object.entries(server.headers || {});
-    const authorization = headers.find(([name, reference]) => name.toLowerCase() === 'authorization' && reference.prefix === 'Bearer ');
-    if (authorization) lines.push(`bearer_token_env_var = ${tomlString(authorization[1].name)}`);
-    const environmentHeaders = headers.filter(([name, reference]) => !(name.toLowerCase() === 'authorization' && reference.prefix === 'Bearer '));
+    const authorization = headers.find(([name]) => name.toLowerCase() === 'authorization');
+    if (authorization && authorization[1].prefix === 'Bearer ') lines.push(`bearer_token_env_var = ${tomlString(authorization[1].name)}`);
+    const environmentHeaders = headers.filter(([name]) => !(name.toLowerCase() === 'authorization' && server.headers[name].prefix === 'Bearer '));
+    const unsupported = environmentHeaders.find(([, reference]) => reference.prefix);
+    if (unsupported) throw new Error(`Codex cannot safely represent header '${unsupported[0]}' with prefix/template semantics.`);
     if (environmentHeaders.length) {
-      lines.push(`env_http_headers = ${tomlString(Object.fromEntries(environmentHeaders.map(([name, reference]) => [name, reference.name])))}`);
+      lines.push('[mcp_servers.' + server.id + '.env_http_headers]');
+      for (const [name, reference] of environmentHeaders) lines.push(`${tomlKey(name)} = ${tomlString(reference.name)}`);
     }
   }
   return `${lines.join('\n')}\n`;
+}
+
+function tomlKey(value) {
+  return /^[A-Za-z0-9_-]+$/.test(value) ? value : JSON.stringify(value);
 }
 
 function normalizeCodexBlock(text) {

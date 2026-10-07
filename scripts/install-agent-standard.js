@@ -262,7 +262,10 @@ function buildPlan(options) {
   if ((profile.mcp || []).length) {
     if (!adapter.mcpConfig) throw new Error(`host ${host.id} has no MCP configuration adapter`);
     const representation = adapter.mcpConfig;
-    const relativePath = options.global ? representation.globalPath : representation.projectPath;
+    const projectCandidates = representation.projectPaths || [representation.projectPath];
+    const relativePath = options.global
+      ? representation.globalPath
+      : projectCandidates.find((candidate) => fs.existsSync(safePath(installRoot, candidate))) || representation.projectPath;
     const target = safePath(installRoot, relativePath);
     const configCreated = !fs.existsSync(target);
     const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';

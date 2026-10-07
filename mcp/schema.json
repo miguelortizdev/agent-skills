@@ -49,7 +49,7 @@
           "if": {"properties": {"transport": {"const": "stdio"}}},
           "then": {
             "required": ["command", "args"],
-            "not": {"required": ["url", "headers"]}
+            "not": {"anyOf": [{"required": ["url"]}, {"required": ["headers"]}]}
           }
         },
         {
