@@ -27,3 +27,37 @@ Host-specific guides remain in the shared reference directory:
 To add a Host, update the Registry host entry, adapter contract, native
 destinations, capability matrix, ownership/uninstall behavior, tests, and drift
 validation. Do not duplicate canonical assets.
+
+## Executable Host Smoke Checks
+
+These isolated dry-runs verify the documented Host IDs and Profile:
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host claude --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host codex --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host cursor --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host gemini --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host opencode --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host openchamber --profile decameron --dry-run
+```

@@ -93,6 +93,12 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 The three strategies are documented in
 [Installation Strategies](docs/installation.md#installation-strategies).
 
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  --global --host codex --profile decameron --dry-run
+```
+
 > **Installing one skill?** A per-skill `npx` install copies only
 > `skills/<name>/`, not the repo-level `references/` directory. The skill still
 > works, but paths to supplementary shared checklists are unavailable. Use a

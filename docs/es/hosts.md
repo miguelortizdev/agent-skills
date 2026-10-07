@@ -27,3 +27,37 @@ Las guías específicas de Host permanecen en la referencia compartida:
 Para agregar un Host, actualiza la entrada del Registry, el contrato del adapter,
 destinos nativos, matriz de capacidades, ownership/uninstall, tests y validación
 de drift. No dupliques assets canónicos.
+
+## Checks Ejecutables De Hosts
+
+Estos dry-runs aislados verifican los IDs de Host y el Profile documentados:
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host claude --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host codex --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host cursor --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host gemini --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host opencode --profile decameron --dry-run
+```
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js --global --host openchamber --profile decameron --dry-run
+```
