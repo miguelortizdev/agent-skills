@@ -11,8 +11,7 @@ genérico.
 
 Catálogo productivo actual:
 
-- 25 Skills, todos base
-- 0 Contextual Skills productivos
+- 26 Skills: 25 Skills base y 1 Contextual Skill
 - 9 Commands, 4 Agents, 7 References y 6 Hosts
 
 ## Elige Tu Ruta

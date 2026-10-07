@@ -416,27 +416,27 @@ test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', (
   assert.deepEqual(fs.readFileSync(malformedPath), original);
 });
 
-test('project installs report no contextual Skills when the production catalog is empty', () => {
+test('project installs the matching production contextual Skill', () => {
   const root = makeSandbox();
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
   fs.writeFileSync(path.join(root, 'next.config.ts'), 'export default {}\n');
   const install = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
   assert.equal(install.status, 0, install.stdout + install.stderr);
-  assert.match(install.stdout, /Detected project context: none/);
+  assert.match(install.stdout, /Detected project context: vercel-react-best-practices/);
   const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'cursor.json'), 'utf8'));
-  assert.deepEqual(manifest.contextualSkills, []);
-  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'nextjs-vercel-engineering')), false);
+  assert.deepEqual(manifest.contextualSkills.map((entry) => entry.id), ['vercel-react-best-practices']);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'vercel-react-best-practices', 'SKILL.md')), true);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'security-and-hardening', 'SKILL.md')), true);
 });
 
-test('technology evidence does not affect project or global installations without registered contextual Skills', () => {
+test('technology evidence installs the registered contextual Skill for project and global scopes', () => {
   for (const host of ['claude', 'codex', 'cursor', 'gemini', 'opencode', 'openchamber']) {
     const root = makeSandbox();
     fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
     const project = run(root, '--host', host, '--profile', 'decameron', '--project');
     assert.equal(project.status, 0, `${host}: ${project.stdout}${project.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', `${host}.json`), 'utf8'));
-    assert.deepEqual(manifest.contextualSkills, [], host);
+    assert.deepEqual(manifest.contextualSkills.map((entry) => entry.id), ['vercel-react-best-practices'], host);
 
     const globalRoot = makeSandbox();
     fs.writeFileSync(path.join(globalRoot, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
@@ -444,13 +444,13 @@ test('technology evidence does not affect project or global installations withou
     const global = run(globalRoot, '--host', host, '--profile', 'decameron', '--global', { env: { HOME: home } });
     assert.equal(global.status, 0, `${host} global: ${global.stdout}${global.stderr}`);
     const globalManifest = JSON.parse(fs.readFileSync(path.join(home, '.agent-standard', 'installations', `${host}.json`), 'utf8'));
-    assert.deepEqual(globalManifest.contextualSkills, [], `${host} global context leaked`);
+    assert.deepEqual(globalManifest.contextualSkills, [], `${host} global context should not inspect the project`);
   }
 });
 
 test('zero-context dry-run explains no registered contextual Skills without writing', () => {
   const root = makeSandbox();
-  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { vue: '^3.0.0' } }));
   const before = relativeFiles(root).sort();
   const dry = run(root, '--host', 'cursor', '--profile', 'decameron', '--project', '--dry-run');
   assert.equal(dry.status, 0, dry.stdout + dry.stderr);
@@ -458,13 +458,12 @@ test('zero-context dry-run explains no registered contextual Skills without writ
   assert.deepEqual(relativeFiles(root).sort(), before);
 });
 
-test('nested multi-stack projects install no contextual Skills without production registrations', () => {
+test('nested non-React projects install no contextual Skills', () => {
   const root = makeSandbox();
   fs.mkdirSync(path.join(root, 'frontend'), { recursive: true });
   fs.mkdirSync(path.join(root, 'backend'), { recursive: true });
   fs.mkdirSync(path.join(root, 'deploy', 'openshift'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'frontend', 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
-  fs.writeFileSync(path.join(root, 'frontend', 'next.config.ts'), 'export default {}\n');
+  fs.writeFileSync(path.join(root, 'frontend', 'package.json'), JSON.stringify({ dependencies: { vue: '^3.0.0' } }));
   fs.writeFileSync(path.join(root, 'backend', 'pom.xml'), '<dependency>org.springframework.boot</dependency>\n');
   fs.writeFileSync(path.join(root, 'deploy', 'openshift', 'route.yaml'), 'apiVersion: route.openshift.io/v1\nkind: Route\n');
   const result = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
@@ -673,7 +672,7 @@ test('does not uninstall a file modified after installation', () => {
 test('installs a project overlay only after a matching global foundation exists', () => {
   const root = makeSandbox();
   const home = makeSandbox();
-  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { vue: '^3.0.0' } }));
   const globalInstall = run(root, '--host', 'cursor', '--profile', 'decameron', '--global', { env: { HOME: home } });
   assert.equal(globalInstall.status, 0, globalInstall.stdout + globalInstall.stderr);
 
@@ -765,7 +764,7 @@ test('keeps full project installation distinct and expands overlay to full safel
   assert.equal(fs.existsSync(path.join(root, '.codex', 'agents', 'code-reviewer.toml')), true);
   const manifest = JSON.parse(fs.readFileSync(path.join(root, '.agent-standard', 'installations', 'codex.json'), 'utf8'));
   assert.equal(manifest.mode, 'full');
-  assert.equal(manifest.contextualSkills.length, 0);
+  assert.deepEqual(manifest.contextualSkills.map((entry) => entry.id), ['vercel-react-best-practices']);
 });
 
 test('does not allow replacing a full project installation with an overlay', () => {
@@ -809,7 +808,7 @@ test('supports zero-context overlays for every host without foundation duplicati
   for (const [host, destination, globalDestination, mcpPath] of hosts) {
     const root = makeSandbox();
     const home = makeSandbox();
-    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { vue: '^3.0.0' } }));
     const globalInstall = run(root, '--host', host, '--profile', 'decameron', '--global', { env: { HOME: home } });
     assert.equal(globalInstall.status, 0, `${host} global: ${globalInstall.stdout}${globalInstall.stderr}`);
     const overlay = run(root, '--host', host, '--profile', 'decameron', '--overlay', { env: { HOME: home } });
@@ -828,7 +827,7 @@ test('supports overlay monorepos with zero contextual Skills and no foundation c
   const root = makeSandbox();
   const home = makeSandbox();
   fs.mkdirSync(path.join(root, 'frontend'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'frontend', 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  fs.writeFileSync(path.join(root, 'frontend', 'package.json'), JSON.stringify({ dependencies: { vue: '^3.0.0' } }));
   fs.mkdirSync(path.join(root, 'backend'), { recursive: true });
   fs.mkdirSync(path.join(root, 'deploy', 'openshift'), { recursive: true });
   fs.writeFileSync(path.join(root, 'backend', 'pom.xml'), '<dependency>org.springframework.boot</dependency>\n');
@@ -848,10 +847,10 @@ test('supports overlay monorepos with zero contextual Skills and no foundation c
   assert.equal(fs.existsSync(path.join(root, '.agents')), false);
 });
 
-test('accepts legacy global manifests without mode when no contextual Skills are registered', () => {
+test('accepts legacy global manifests without mode when no contextual Skills are detected', () => {
   const root = makeSandbox();
   const home = makeSandbox();
-  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { next: '^15.0.0' } }));
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { vue: '^3.0.0' } }));
   assert.equal(run(root, '--host', 'cursor', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
   const globalManifestPath = path.join(home, '.agent-standard', 'installations', 'cursor.json');
   const globalManifest = JSON.parse(fs.readFileSync(globalManifestPath, 'utf8'));

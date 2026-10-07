@@ -46,14 +46,26 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('canonical production registry has no contextual Skills', () => {
+test('canonical production registry contains the Vercel contextual Skill', () => {
   const skills = canonicalCatalog.assets.filter((asset) => asset.type === 'skill');
-  assert.equal(skills.length, 25);
-  assert.equal(skills.filter((asset) => asset.contextual === true).length, 0);
-  assert.deepEqual(skills.filter((asset) => asset.source !== 'upstream').map((asset) => asset.id), []);
+  assert.equal(skills.length, 26);
+  assert.deepEqual(skills.filter((asset) => asset.contextual === true).map((asset) => asset.id), ['vercel-react-best-practices']);
+  assert.deepEqual(skills.filter((asset) => asset.source !== 'upstream').map((asset) => asset.id), ['vercel-react-best-practices']);
   for (const id of ['nextjs-vercel-engineering', 'laravel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
     assert.equal(skills.some((asset) => asset.id === id), false, id);
   }
+});
+
+test('resolves the production Vercel React and Next.js Skill from dependency evidence', () => {
+  const next = project({ 'package.json': JSON.stringify({ dependencies: { next: '^15.0.0' } }) });
+  const react = project({ 'package.json': JSON.stringify({ dependencies: { react: '^19.0.0', 'react-dom': '^19.0.0' } }) });
+  const plain = project({ 'package.json': JSON.stringify({ dependencies: { vue: '^3.0.0' } }) });
+  const ids = (root) => resolveContextualSkills(detectProjectContext(root), canonicalCatalog);
+
+  assert.deepEqual(ids(next).map((entry) => entry.id), ['vercel-react-best-practices']);
+  assert.deepEqual(ids(react).map((entry) => entry.id), ['vercel-react-best-practices']);
+  assert.deepEqual(ids(next)[0].evidence, ['package.json -> dependency "next"']);
+  assert.deepEqual(ids(plain), []);
 });
 
 test('resolves Next.js from package metadata and config evidence', () => {

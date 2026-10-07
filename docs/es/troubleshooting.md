@@ -10,7 +10,7 @@
 | Profile incompatible | Desinstala primero el Profile existente para ese Host y alcance. |
 | Host incompatible | Usa el Host propietario de la Foundation global. |
 | Falta entorno MCP | Revisa referencias requeridas como `KUBECONFIG`. |
-| No hubo Contextual Skills | Es esperado hoy: el catálogo contextual productivo está vacío. |
+| No hubo Contextual Skills | Verifica que el proyecto contenga `react`, `react-dom` o `next` en un `package.json` acotado. |
 | Conflicto de ownership | Revisa el manifest y no sobrescribas archivos modificados. |
 | Archivo existente no administrado | Mueve o revisa el archivo; el installer rechaza sobrescrituras inseguras. |
 | Error de Registry | Ejecuta `node scripts/validate-registry.js` y corrige el asset/regla indicado. |

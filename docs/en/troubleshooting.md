@@ -10,7 +10,7 @@
 | Profile mismatch | Uninstall the existing profile for that Host and scope first. |
 | Host mismatch | Use the Host that owns the global Foundation. |
 | MCP environment missing | Check required environment references such as `KUBECONFIG`. |
-| No Contextual Skills matched | This is expected today: production contextual catalog is empty. |
+| No Contextual Skills matched | Check that the project contains `react`, `react-dom`, or `next` in a bounded `package.json`. |
 | Ownership conflict | Inspect the installation manifest and do not overwrite changed files. |
 | Existing unmanaged file | Move or review the file; the installer refuses unsafe overwrite. |
 | Registry validation error | Run `node scripts/validate-registry.js` and fix the reported asset/rule. |

@@ -1,0 +1,47 @@
+{
+  "skill_name": "vercel-react-best-practices",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "Review this Next.js page for waterfalls and bundle-size problems",
+        "top_k": 1
+      },
+      {
+        "prompt": "Improve the rendering performance of this React component",
+        "top_k": 3
+      },
+      {
+        "prompt": "Fix this Next.js data-fetching waterfall and avoid unnecessary rerenders",
+        "top_k": 3
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "Optimize the slow PostgreSQL query",
+        "owner": "performance-optimization"
+      },
+      {
+        "prompt": "Design the public API for this billing module",
+        "owner": "api-and-interface-design"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Refactor this React data-loading component to remove avoidable waterfalls and rerenders.",
+      "expected_output": "A targeted React performance change grounded in the applicable Vercel rule, with behavior preserved and verification described.",
+      "files": [
+        "vercel-react-best-practices/README.md",
+        "vercel-react-best-practices/package.json",
+        "vercel-react-best-practices/ProductList.tsx"
+      ],
+      "expectations": [
+        "The response identifies the applicable rule before changing the code",
+        "Independent async work is parallelized without breaking dependencies",
+        "The response avoids speculative memoization and preserves behavior",
+        "The change includes a concrete verification step"
+      ]
+    }
+  ]
+}

@@ -22,7 +22,7 @@ Commands, the installer keeps the underlying Skills available as the documented
 fallback.
 
 For a new project, run `sync --host <host> --profile decameron` after the global
-Foundation exists. Today that Overlay has no production Contextual Skills to
+Foundation exists. The Overlay can now materialize production Contextual Skills to
 install; future Registry entries can add them automatically.
 
 See [Skills](skills.md) for choosing a direct Skill and [Troubleshooting](troubleshooting.md)

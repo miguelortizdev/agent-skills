@@ -10,8 +10,8 @@ ownership-safe installation, and a generic Context Rules Engine.
 
 Current production catalog:
 
-- 25 Skills, all base Skills
-- 0 production Contextual Skills
+- 26 Skills: 25 base Skills and 1 Contextual Skill
+- 1 production Contextual Skill: `vercel-react-best-practices`
 - 9 Commands, 4 Agents, 7 References, and 6 Hosts
 
 ## Choose Your Path
