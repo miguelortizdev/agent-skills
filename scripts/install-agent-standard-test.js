@@ -864,6 +864,13 @@ test('supports overlay monorepos with multiple contextual Skills and no foundati
   assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'api-and-interface-design')), false);
   assert.equal(fs.existsSync(path.join(root, '.codex', 'agents')), false);
   assert.equal(fs.existsSync(path.join(root, '.codex', 'config.toml')), false);
+
+  fs.rmSync(path.join(root, 'frontend'), { recursive: true, force: true });
+  const partial = run(root, 'sync', '--host', 'codex', '--profile', 'decameron', { env: { HOME: home } });
+  assert.equal(partial.status, 0, partial.stdout + partial.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'nextjs-vercel-engineering')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'spring-boot-engineering', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'openshift-engineering', 'SKILL.md')), true);
 });
 
 test('accepts legacy manifests without mode and leaves overlays intact after global uninstall', () => {
