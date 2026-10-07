@@ -17,7 +17,10 @@ function makeSandbox() {
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'mcp'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'scripts', 'validate-mcp.js'), path.join(root, 'scripts', 'validate-mcp.js'));
+  fs.mkdirSync(path.join(root, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', 'json-schema.js'), path.join(root, 'scripts', 'lib', 'json-schema.js'));
   fs.copyFileSync(path.join(ROOT, 'mcp', 'registry.json'), path.join(root, 'mcp', 'registry.json'));
+  fs.copyFileSync(path.join(ROOT, 'mcp', 'schema.json'), path.join(root, 'mcp', 'schema.json'));
   sandboxes.push(root);
   return root;
 }
@@ -51,7 +54,7 @@ test('rejects inline environment values', () => {
   fs.writeFileSync(file, JSON.stringify(data));
   const result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /inline MCP environment values are forbidden/);
+  assert.match(result.stderr, /inline MCP environment values are forbidden|not allowed/);
 });
 
 test('rejects duplicate server IDs', () => {
@@ -71,14 +74,14 @@ test('rejects unknown transports and invalid URLs', () => {
   fs.writeFileSync(file, JSON.stringify(data));
   let result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /unknown MCP transport/);
+  assert.match(result.stderr, /unknown MCP transport|must be one of/);
 
   data.servers[0].transport = 'http';
   data.servers[0].url = 'not-a-url';
   fs.writeFileSync(file, JSON.stringify(data));
   result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /requires an http/);
+  assert.match(result.stderr, /requires an http|matches a forbidden schema|invalid format/);
 });
 
 test('rejects plaintext secrets and invalid environment references', () => {
@@ -88,7 +91,7 @@ test('rejects plaintext secrets and invalid environment references', () => {
   fs.writeFileSync(file, JSON.stringify(data));
   let result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /invalid MCP environment reference/);
+  assert.match(result.stderr, /invalid MCP environment reference|is required/);
 
   data.servers[0].env.KUBECONFIG = { source: 'environment', name: 'API_TOKEN' };
   fs.writeFileSync(file, JSON.stringify(data));
@@ -124,5 +127,41 @@ test('rejects HTTP headers with literal values', () => {
   fs.writeFileSync(file, JSON.stringify(data));
   const result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /invalid MCP header reference/);
+  assert.match(result.stderr, /invalid MCP header reference|must be a object/);
+});
+
+test('rejects unknown properties and invalid transport combinations through the schema', () => {
+  const root = makeSandbox();
+  const { file, data } = registry(root);
+  data.servers[0].password = 'SUPER_SECRET_MCP_VALUE_987654';
+  fs.writeFileSync(file, JSON.stringify(data));
+  let result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /not allowed/);
+
+  delete data.servers[0].password;
+  data.servers[0].url = 'https://example.com/mcp';
+  fs.writeFileSync(file, JSON.stringify(data));
+  result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /does not match|not allowed/);
+
+  delete data.servers[0].url;
+  data.servers[0].transport = 'http';
+  delete data.servers[0].command;
+  delete data.servers[0].args;
+  fs.writeFileSync(file, JSON.stringify(data));
+  result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /required|requires/);
+});
+
+test('rejects unknown properties inside environment references', () => {
+  const root = makeSandbox();
+  const { file, data } = registry(root);
+  data.servers[0].env.KUBECONFIG.secret = 'SUPER_SECRET_MCP_VALUE_987654';
+  fs.writeFileSync(file, JSON.stringify(data));
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /not allowed/);
 });

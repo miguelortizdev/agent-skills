@@ -314,6 +314,19 @@ test('uses OpenCode V2 MCP servers and shared OpenChamber ownership', () => {
   assert.equal(fs.existsSync(configPath), false);
 });
 
+test('respects existing higher-precedence OpenCode project configuration', () => {
+  const root = makeSandbox();
+  const configPath = path.join(root, '.opencode', 'opencode.json');
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify({ projectSetting: true }, null, 2) + '\n');
+  const result = run(root, '--host', 'opencode', '--profile', 'decameron', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.existsSync(path.join(root, 'opencode.json')), false);
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  assert.equal(config.projectSetting, true);
+  assert.deepEqual(Object.keys(config.mcp.servers).sort(), ['context7', 'kubernetes']);
+});
+
 test('merges Codex MCP around unrelated TOML and cleans installer-owned config', () => {
   const root = makeSandbox();
   const install = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
