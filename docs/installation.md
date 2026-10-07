@@ -23,6 +23,9 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 Supported hosts are `claude`, `codex`, `cursor`, `opencode`, `gemini`, and
 `openchamber`. Supported profiles are `default` and `decameron`.
 
+Project-scoped installs also detect supported technology markers and add
+contextual Skills. See [Context-Aware Skills](context-aware-skills.md).
+
 ## Install
 
 ```bash
