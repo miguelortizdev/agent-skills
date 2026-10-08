@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "hosts": [
+    {
+      "id": "claude",
+      "displayName": "Claude Code",
+      "adapterPath": "adapters/claude",
+      "nativePaths": [".claude/skills", ".claude/commands", ".claude/agents"],
+      "capabilities": ["skills", "commands", "agents", "references", "evals", "hooks", "mcp"]
+    },
+    {
+      "id": "codex",
+      "displayName": "Codex",
+      "adapterPath": "adapters/codex",
+      "nativePaths": [".codex-plugin", ".agents/skills", ".codex/agents"],
+      "capabilities": ["skills", "agents", "references", "mcp"]
+    },
+    {
+      "id": "cursor",
+      "displayName": "Cursor",
+      "adapterPath": "adapters/cursor",
+      "nativePaths": [".cursor/skills", ".cursor/commands", ".cursor/agents", ".cursor/rules"],
+      "capabilities": ["skills", "commands", "agents", "references", "mcp"]
+    },
+    {
+      "id": "opencode",
+      "displayName": "OpenCode",
+      "adapterPath": "adapters/opencode",
+      "nativePaths": [".opencode/skills", ".opencode/commands", ".opencode/agents"],
+      "capabilities": ["skills", "commands", "agents", "references", "mcp"]
+    },
+    {
+      "id": "gemini",
+      "displayName": "Gemini CLI",
+      "adapterPath": "adapters/gemini",
+      "nativePaths": [".gemini/skills", ".gemini/commands", ".gemini/agents"],
+      "capabilities": ["skills", "commands", "agents", "references", "mcp"]
+    },
+    {
+      "id": "openchamber",
+      "displayName": "OpenChamber",
+      "adapterPath": "adapters/openchamber",
+      "nativePaths": [".opencode/skills", ".opencode/commands", ".opencode/agents"],
+      "capabilities": ["skills", "commands", "agents", "references", "mcp"]
+    }
+  ]
+}

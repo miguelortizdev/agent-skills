@@ -1,0 +1,48 @@
+{
+  "host": "gemini",
+  "status": "verified",
+  "officialDocs": [
+    "https://geminicli.com/docs/cli/skills/",
+    "https://geminicli.com/docs/cli/custom-commands/",
+    "https://geminicli.com/docs/core/subagents/",
+    "https://geminicli.com/docs/cli/tutorials/mcp-setup/"
+  ],
+  "nativeDiscovery": {
+    "skills": [".gemini/skills", ".agents/skills"],
+    "agents": [".gemini/agents"],
+    "commands": ".gemini/commands",
+    "mcp": "Gemini CLI settings"
+  },
+  "mapping": {
+    "skills": "native-workspace-or-user-scope-install",
+    "agents": "native-project-or-user-scope",
+    "commands": "native-command-wrapper",
+    "references": "bundled-with-selected-skill-or-repository",
+    "evals": "repository-validation",
+    "hooks": "native-or-documented-fallback",
+    "mcp": "documented-fallback"
+  },
+  "nativeCapabilities": ["skills", "commands", "agents", "references"],
+  "installDestinations": {
+    "project": {
+      "skills": ".gemini/skills",
+      "agents": ".gemini/agents",
+      "commands": ".gemini/commands",
+      "references": ".gemini/references"
+    },
+    "global": {
+      "skills": ".gemini/skills",
+      "agents": ".gemini/agents",
+      "commands": ".gemini/commands",
+      "references": ".gemini/references"
+    }
+  },
+  "commandRepresentation": {
+    "format": "toml",
+    "extension": ".toml",
+    "filenameMap": {"plan": "planning"},
+    "nativeSourceDirectory": ".gemini/commands"
+  },
+  "mcpStrategy": "documented-fallback",
+  "progressiveDisclosure": "Keep Skills on demand; use GEMINI.md only for persistent project context."
+}

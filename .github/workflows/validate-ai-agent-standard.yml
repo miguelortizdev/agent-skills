@@ -1,0 +1,83 @@
+name: Validate AI Agent Standard
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  structural:
+    name: Structural AI asset validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Validate canonical assets
+        run: >-
+          node scripts/validate-skills.js &&
+          node scripts/validate-commands.js &&
+          node scripts/validate-reference-links.js &&
+          node scripts/validate-artifact-paths.js &&
+          node scripts/validate-versions.js
+
+      - name: Validate standard metadata
+        run: >-
+          node scripts/validate-registry.js &&
+          node scripts/validate-profiles.js &&
+          node scripts/validate-mcp.js &&
+          node scripts/validate-upstream-parity.js
+
+      - name: Test standard metadata validators
+        run: >-
+          node --test
+          scripts/validate-registry-test.js
+          scripts/validate-profiles-test.js
+          scripts/validate-mcp-test.js
+          scripts/validate-upstream-parity-test.js
+
+  cross-host:
+    name: Cross-host parity validation
+    runs-on: ubuntu-latest
+    needs: structural
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Validate adapters and upstream report
+        run: >-
+          node scripts/validate-adapter-drift.js &&
+          node scripts/check-agent-skills-upstream.js --source .
+
+      - name: Test adapter and installer behavior
+        run: >-
+          node --test
+          scripts/validate-adapter-drift-test.js
+          scripts/install-agent-standard-test.js
+
+  routing:
+    name: Routing evaluation quality gate
+    runs-on: ubuntu-latest
+    needs: structural
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run deterministic routing evals
+        run: node scripts/run-evals.js --min-rank1 95

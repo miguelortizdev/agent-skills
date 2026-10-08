@@ -1,0 +1,51 @@
+{
+  "host": "opencode",
+  "status": "verified",
+  "officialDocs": [
+    "https://opencode.ai/docs/skills/",
+    "https://opencode.ai/docs/commands/",
+    "https://opencode.ai/docs/agents/",
+    "https://opencode.ai/docs/mcp-servers/"
+  ],
+  "nativeDiscovery": {
+    "skills": [".opencode/skills", ".claude/skills", ".agents/skills"],
+    "agents": ".opencode/agents",
+    "commands": ".opencode/commands",
+    "mcp": "opencode.json"
+  },
+  "mapping": {
+    "skills": "copy-or-sync-selected-profile-assets",
+    "agents": "native-agent-or-documentation-fallback",
+    "commands": "optional-native-command-wrapper",
+    "references": "bundle-with-selected-skill-or-repository",
+    "evals": "repository-validation",
+    "hooks": "documented-fallback",
+    "mcp": "documented-fallback"
+  },
+  "nativeCapabilities": ["skills", "commands", "agents", "references"],
+  "installDestinations": {
+    "project": {
+      "skills": ".opencode/skills",
+      "agents": ".opencode/agents",
+      "commands": ".opencode/commands",
+      "references": ".opencode/references"
+    },
+    "global": {
+      "skills": ".config/opencode/skills",
+      "agents": ".config/opencode/agents",
+      "commands": ".config/opencode/commands",
+      "references": ".config/opencode/references"
+    }
+  },
+  "commandRepresentation": {
+    "format": "markdown",
+    "extension": ".md",
+    "filenameMap": {"plan": "plan"}
+  },
+  "agentRepresentation": {
+    "format": "markdown",
+    "addMode": "subagent"
+  },
+  "mcpStrategy": "documented-fallback",
+  "progressiveDisclosure": "Skills are loaded on demand by the native skill tool."
+}

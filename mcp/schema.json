@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/addyosmani/agent-skills/schemas/mcp.schema.json",
+  "type": "object",
+  "required": ["version", "servers"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "servers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "command", "args", "environment"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "command": {"type": "string", "minLength": 1},
+          "args": {"type": "array", "items": {"type": "string"}},
+          "environment": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "valueFrom"],
+              "additionalProperties": false,
+              "properties": {
+                "name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+                "valueFrom": {"const": "environment"},
+                "required": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

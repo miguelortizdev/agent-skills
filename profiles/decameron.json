@@ -1,0 +1,14 @@
+{
+  "name": "decameron",
+  "description": "Decameron corporate engineering baseline.",
+  "skills": [
+    "api-and-interface-design",
+    "security-and-hardening",
+    "observability-and-instrumentation"
+  ],
+  "commands": ["spec", "plan", "build", "test", "review", "ship"],
+  "agents": ["code-reviewer", "security-auditor"],
+  "references": ["definition-of-done", "security-checklist", "observability-checklist"],
+  "evals": ["routing-evals"],
+  "mcp": []
+}

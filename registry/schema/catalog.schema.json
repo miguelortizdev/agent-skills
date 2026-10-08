@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/addyosmani/agent-skills/schemas/catalog.schema.json",
+  "type": "object",
+  "required": ["version", "sourceOfTruth", "assets"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "sourceOfTruth": {"const": "repository-root"},
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+          "required": ["id", "type", "path", "source", "enabled"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "type": {"enum": ["skill", "command", "agent", "reference", "eval", "hook", "script"]},
+          "path": {"type": "string", "pattern": "^[^/].*[^/]$"},
+          "source": {"enum": ["upstream", "custom"]},
+          "enabled": {"type": "boolean"}
+          ,"requires": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true}
+        }
+      }
+    }
+  }
+}

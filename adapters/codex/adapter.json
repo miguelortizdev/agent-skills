@@ -1,0 +1,42 @@
+{
+  "host": "codex",
+  "status": "verified",
+  "officialDocs": [
+    "https://developers.openai.com/codex/skills",
+    "https://developers.openai.com/codex/agent-configuration/subagents",
+    "https://developers.openai.com/codex/plugins"
+  ],
+  "nativeDiscovery": {
+    "skills": "skills",
+    "agents": ".codex/agents",
+    "commands": "underlying-skill-invocation",
+    "mcp": "plugin-or-host-configuration"
+  },
+  "mapping": {
+    "skills": "native-plugin-root-path",
+    "agents": "native-custom-agent",
+    "commands": "underlying-skill-invocation",
+    "references": "bundled-with-skill-or-repository",
+    "evals": "repository-validation",
+    "hooks": "documented-fallback",
+    "mcp": "documented-fallback"
+  },
+  "nativeCapabilities": ["skills", "agents"],
+  "installDestinations": {
+    "project": {
+      "skills": ".agents/skills",
+      "agents": ".codex/agents",
+      "references": ".agents/references"
+    },
+    "global": {
+      "skills": ".agents/skills",
+      "agents": ".codex/agents",
+      "references": ".agents/references"
+    }
+  },
+  "agentRepresentation": {
+    "format": "toml"
+  },
+  "mcpStrategy": "documented-fallback",
+  "progressiveDisclosure": "Do not preload using-agent-skills when Codex native routing is available."
+}
