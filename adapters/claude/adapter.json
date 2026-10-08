@@ -1,5 +1,6 @@
 {
   "host": "claude",
+  "globalCommandSupport": "native",
   "status": "verified",
   "officialDocs": [
     "https://code.claude.com/docs/en/plugins",
@@ -43,6 +44,7 @@
     "nativeSourceDirectory": ".claude/commands"
   },
   "mcpStrategy": "native-merge",
+  "projectInstructions": {"path": "CLAUDE.md"},
   "mcpConfig": {
     "format": "json",
     "projectPath": ".mcp.json",

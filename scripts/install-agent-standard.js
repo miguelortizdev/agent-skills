@@ -14,26 +14,32 @@ const HOST_DIR = path.join(ROOT, 'registry', 'hosts.json');
 const MCP_FILE = path.join(ROOT, 'mcp', 'registry.json');
 const TYPE_FIELDS = { skill: 'skills', command: 'commands', agent: 'agents', reference: 'references' };
 const mcp = require('./lib/mcp');
+const { detectProjectContext } = require('./lib/context-detector');
+const { resolveContextualSkills } = require('./lib/context-resolver');
+const { END_MARKER, START_MARKER, mergeProjectInstructions, removeProjectInstructions } = require('./lib/project-instructions');
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
 function parseArgs(argv) {
-  const options = { dryRun: false, global: false, project: false, uninstall: false };
+  const options = { dryRun: false, global: false, project: false, overlay: false, uninstall: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') options.dryRun = true;
     else if (arg === '--uninstall') options.uninstall = true;
     else if (arg === '--global') options.global = true;
     else if (arg === '--project') options.project = true;
+    else if (arg === '--overlay' || arg === 'sync') options.overlay = true;
     else if (arg === '--host') options.host = argv[++index];
     else if (arg === '--profile') options.profile = argv[++index];
     else throw new Error(`unknown option: ${arg}`);
   }
   if (!options.host) throw new Error('--host is required');
   if (!options.profile) throw new Error('--profile is required');
-  if (options.global === options.project) throw new Error('choose exactly one of --global or --project');
+  if (Number(options.global) + Number(options.project) + Number(options.overlay) !== 1) {
+    throw new Error('choose exactly one of --global, --project, or --overlay');
+  }
   return options;
 }
 
@@ -63,6 +69,15 @@ function filesIn(source, relative = '') {
   if (stat.isSymbolicLink()) throw new Error(`source symlink is not installable: ${path.relative(ROOT, current)}`);
   if (stat.isFile()) return [{ source: current, relative: relative || path.basename(current) }];
   return fs.readdirSync(current).flatMap((entry) => filesIn(source, path.join(relative, entry)));
+}
+
+function projectInstructionAction(adapter, installRoot) {
+  const target = safePath(installRoot, adapter.projectInstructions.path);
+  const existed = fs.existsSync(target);
+  const current = existed ? fs.readFileSync(target, 'utf8') : '';
+  const createPrefix = adapter.projectInstructions.createPrefix || '';
+  const merged = mergeProjectInstructions(current, createPrefix);
+  return { target, path: path.relative(installRoot, target), content: merged.content, changed: merged.changed, created: !existed, emptyContent: createPrefix };
 }
 
 function hashFile(file) {
@@ -178,6 +193,41 @@ function readInstallationManifests(installRoot) {
   }));
 }
 
+function installationMode(manifest) {
+  if (manifest.mode) return manifest.mode;
+  return manifest.scope === 'global' ? 'global' : 'full';
+}
+
+function requestedMode(options) {
+  if (options.global) return 'global';
+  if (options.overlay) return 'overlay';
+  return 'full';
+}
+
+function validateGlobalFoundation(hostId, profileName) {
+  const globalRoot = os.homedir();
+  const globalManifests = readInstallationManifests(globalRoot)
+    .filter((entry) => installationMode(entry.manifest) === 'global');
+  const hostManifest = globalManifests.find((entry) => entry.manifest.host === hostId);
+  if (!hostManifest) {
+    if (globalManifests.length) {
+      throw new Error(`global foundation host mismatch; requested ${hostId}, installed hosts: ${globalManifests.map((entry) => entry.manifest.host).join(', ')}`);
+    }
+    throw new Error(`global foundation was not found for host ${hostId}`);
+  }
+  if (hostManifest.manifest.profile !== profileName) {
+    throw new Error(`global foundation profile mismatch; installed globally: ${hostManifest.manifest.profile}; requested by project: ${profileName}`);
+  }
+  if (!Array.isArray(hostManifest.manifest.files) || hostManifest.manifest.files.length === 0) {
+    throw new Error(`global foundation was not found for host ${hostId}`);
+  }
+  const missing = hostManifest.manifest.files
+    .filter((file) => !fs.existsSync(safePath(globalRoot, file.path)))
+    .map((file) => file.path);
+  if (missing.length) throw new Error(`global foundation is incomplete for host ${hostId}; missing managed files: ${missing.join(', ')}`);
+  return hostManifest.manifest;
+}
+
 function writeManifest(file, manifest) {
   assertNoSymlinkPath(path.dirname(file), path.dirname(file));
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -196,6 +246,7 @@ function buildPlan(options) {
   if (!host) throw new Error(`unknown host: ${options.host}`);
   const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
+  const mode = requestedMode(options);
   const scope = options.global ? 'global' : 'project';
   const installRoot = options.global ? os.homedir() : process.cwd();
   const installationManifest = manifestPath(installRoot, host.id);
@@ -203,11 +254,34 @@ function buildPlan(options) {
   if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== scope)) {
     throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
   }
+  if (existingManifest && installationMode(existingManifest) !== mode) {
+    if (mode === 'overlay' && installationMode(existingManifest) === 'full') {
+      throw new Error('a full project installation is already present; uninstall it before switching to overlay mode');
+    }
+    if (mode === 'global' || installationMode(existingManifest) === 'global') {
+      throw new Error(`installation mode mismatch: existing ${installationMode(existingManifest)}, requested ${mode}`);
+    }
+  }
+  const globalFoundation = mode === 'overlay' ? validateGlobalFoundation(host.id, profile.name) : null;
   const actions = [];
   const mcpActions = [];
   const skipped = [];
 
   const selectedProfile = { ...profile };
+  const detectedContext = options.global ? null : detectProjectContext(installRoot);
+  const contextualSkills = options.global ? [] : resolveContextualSkills(detectedContext, catalog);
+  const projectInstructions = mode === 'overlay' ? [projectInstructionAction(adapter, installRoot)] : [];
+  const otherInstructionOwners = readInstallationManifests(installRoot)
+    .filter((entry) => entry.file !== installationManifest)
+    .flatMap((entry) => entry.manifest.projectInstructions || []);
+  for (const instruction of projectInstructions) {
+    if (otherInstructionOwners.some((owner) => owner.path === instruction.path && owner.created)) instruction.created = true;
+  }
+  const contextualIds = new Set(contextualSkills.map((skill) => skill.id));
+  const previousContextualSkills = existingManifest?.contextualSkills || [];
+  const staleContextFiles = previousContextualSkills
+    .filter((skill) => !contextualIds.has(skill.id))
+    .flatMap((skill) => skill.files || []);
   const resolved = new Set();
   function requireAsset(id) {
     if (resolved.has(id)) return;
@@ -218,7 +292,8 @@ function buildPlan(options) {
     const field = TYPE_FIELDS[asset.type];
     if (field && !selectedProfile[field].includes(id)) selectedProfile[field].push(id);
   }
-  for (const field of Object.values(TYPE_FIELDS)) selectedProfile[field] = [...(profile[field] || [])];
+  for (const field of Object.values(TYPE_FIELDS)) selectedProfile[field] = mode === 'overlay' ? [] : [...(profile[field] || [])];
+  for (const skill of contextualSkills) if (!selectedProfile.skills.includes(skill.id)) selectedProfile.skills.push(skill.id);
   for (const field of Object.values(TYPE_FIELDS)) for (const id of selectedProfile[field]) requireAsset(id);
 
   for (const [type, field] of Object.entries(TYPE_FIELDS)) {
@@ -259,7 +334,7 @@ function buildPlan(options) {
       }
     }
   }
-  if ((profile.mcp || []).length) {
+  if (mode !== 'overlay' && (profile.mcp || []).length) {
     if (!adapter.mcpConfig) throw new Error(`host ${host.id} has no MCP configuration adapter`);
     const representation = adapter.mcpConfig;
     const projectCandidates = representation.projectPaths || [representation.projectPath];
@@ -289,12 +364,37 @@ function buildPlan(options) {
     mcpActions.push({ target, relativePath, format: representation.format, rootKey: representation.rootKey, nestedRootKey: representation.nestedRootKey, configCreated, content: merged.content, changed: merged.changed, entries: merged.entries });
   }
   const uniqueActions = [...new Map(actions.map((action) => [action.target, action])).values()];
-  return { options, host, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, skipped, installationManifest, existingManifest };
+  const contextualRoots = contextualSkills.map((skill) => ({
+    id: skill.id,
+    evidence: skill.evidence,
+    root: safePath(installRoot, path.join(installDestinations(adapter, scope).skills, skill.id)),
+  }));
+  return { options, mode, scope, host, adapter, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, projectInstructions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, globalFoundation };
 }
 
 function executeInstall(plan) {
   const conflicts = [];
   const previousFiles = new Map((plan.existingManifest && plan.existingManifest.files || []).map((file) => [file.path, file]));
+  const otherManifests = readInstallationManifests(plan.installRoot).filter((entry) => entry.file !== plan.installationManifest);
+  const otherOwners = new Map();
+  for (const owner of otherManifests) for (const file of owner.manifest.files || []) {
+    if (!otherOwners.has(file.path)) otherOwners.set(file.path, []);
+    otherOwners.get(file.path).push({ owner, file });
+  }
+  const staleRemovable = [];
+  const staleTransfers = [];
+  for (const entry of plan.staleContextFiles) {
+    const target = safePath(plan.installRoot, entry.path);
+    const previous = previousFiles.get(entry.path) || entry;
+    if (!previous.created || !fs.existsSync(target)) continue;
+    if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile() || hashFile(target) !== previous.sha256) {
+      conflicts.push(target);
+      continue;
+    }
+    const owners = otherOwners.get(entry.path) || [];
+    if (owners.length) staleTransfers.push({ target, owners });
+    else staleRemovable.push(target);
+  }
   for (const action of plan.actions) {
     assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
     if (fs.existsSync(action.target)) {
@@ -303,6 +403,10 @@ function executeInstall(plan) {
       if (sourceContent.equals(fs.readFileSync(action.target))) continue;
       conflicts.push(action.target);
     }
+  }
+  for (const action of plan.projectInstructions) {
+    assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
+    if (fs.existsSync(action.target) && fs.lstatSync(action.target).isSymbolicLink()) throw new Error(`refusing to write through symlink: ${action.target}`);
   }
   for (const action of plan.mcpActions) {
     assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
@@ -324,6 +428,15 @@ function executeInstall(plan) {
       created: previousFiles.has(relative) ? previousFiles.get(relative).created : !existed,
     });
   }
+  const projectInstructionRecords = [];
+  for (const action of plan.projectInstructions) {
+    if (action.changed) {
+      fs.mkdirSync(path.dirname(action.target), { recursive: true });
+      fs.writeFileSync(action.target, action.content, { flag: fs.existsSync(action.target) ? 'w' : 'wx' });
+    }
+    const previous = (plan.existingManifest?.projectInstructions || []).find((entry) => entry.path === action.path);
+    projectInstructionRecords.push({ path: action.path, created: previous ? previous.created : action.created, emptyContent: action.emptyContent, sha256: hashFile(action.target) });
+  }
   const mcpRecords = [];
   for (const action of plan.mcpActions) {
     if (action.changed) {
@@ -332,8 +445,48 @@ function executeInstall(plan) {
     }
     for (const entry of action.entries) mcpRecords.push({ path: action.relativePath, format: action.format, rootKey: action.rootKey, nestedRootKey: action.nestedRootKey, configCreated: action.configCreated, ...entry });
   }
+  for (const transfer of staleTransfers) {
+    const successor = transfer.owners[0];
+    const successorFile = successor.owner.manifest.files.find((file) => file.path === path.relative(plan.installRoot, transfer.target));
+    successorFile.created = true;
+    writeManifest(successor.owner.file, successor.owner.manifest);
+  }
+  for (const target of staleRemovable) {
+    fs.unlinkSync(target);
+    removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
+  if (plan.mode === 'overlay' && plan.contextualSkills.length === 0 && plan.projectInstructions.length === 0) {
+    if (plan.existingManifest) {
+      fs.unlinkSync(plan.installationManifest);
+      removeEmptyParents(path.dirname(plan.installationManifest), plan.installRoot);
+    }
+    return;
+  }
+  const contextualManifest = plan.contextualSkills.map((skill) => {
+    const root = plan.contextualRoots.find((entry) => entry.id === skill.id).root;
+    const prefix = `${path.relative(plan.installRoot, root)}${path.sep}`;
+    return { id: skill.id, evidence: skill.evidence, files: files.filter((file) => file.path.startsWith(prefix)) };
+  });
   assertNoSymlinkPath(plan.installRoot, path.dirname(plan.installationManifest));
-  writeManifest(plan.installationManifest, { version: 1, host: plan.host.id, profile: plan.profile.name, scope: plan.options.global ? 'global' : 'project', files, mcp: mcpRecords });
+  const context = plan.detectedContext && {
+    files: plan.detectedContext.files.length,
+    directories: plan.detectedContext.directories.length,
+    dependencies: plan.detectedContext.dependencies.length,
+    textFiles: plan.detectedContext.texts.length,
+  };
+  writeManifest(plan.installationManifest, {
+    version: 1,
+    host: plan.host.id,
+    profile: plan.profile.name,
+    scope: plan.scope,
+    mode: plan.mode,
+    foundation: plan.mode === 'overlay' ? { source: 'global', required: true } : undefined,
+    context: context || undefined,
+    files,
+    projectInstructions: projectInstructionRecords,
+    contextualSkills: contextualManifest,
+    mcp: mcpRecords,
+  });
 }
 
 function removeEmptyParents(start, stop) {
@@ -354,6 +507,23 @@ function executeUninstall(plan) {
   for (const entry of otherManifests) for (const file of entry.manifest.files || []) {
     if (!otherOwners.has(file.path)) otherOwners.set(file.path, []);
     otherOwners.get(file.path).push(entry);
+  }
+  const otherInstructions = new Map();
+  for (const owner of otherManifests) for (const instruction of owner.manifest.projectInstructions || []) {
+    if (!otherInstructions.has(instruction.path)) otherInstructions.set(instruction.path, []);
+    otherInstructions.get(instruction.path).push(owner);
+  }
+  const instructionWrites = [];
+  const instructionDeletes = [];
+  for (const entry of plan.existingManifest.projectInstructions || []) {
+    const target = safePath(plan.installRoot, entry.path);
+    if (!fs.existsSync(target) || (otherInstructions.get(entry.path) || []).length) continue;
+    assertNoSymlinkPath(plan.installRoot, path.dirname(target));
+    if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile()) throw new Error(`refusing to uninstall modified files:\n${target}`);
+    const result = removeProjectInstructions(fs.readFileSync(target, 'utf8'));
+    if (!result.changed) continue;
+    if (entry.created && result.content === (entry.emptyContent || '')) instructionDeletes.push(target);
+    else instructionWrites.push({ target, content: result.content });
   }
   for (const entry of plan.existingManifest.files || []) {
     const target = safePath(plan.installRoot, entry.path);
@@ -422,6 +592,11 @@ function executeUninstall(plan) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
+  for (const action of instructionWrites) fs.writeFileSync(action.target, action.content);
+  for (const target of instructionDeletes) {
+    fs.unlinkSync(target);
+    removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
   for (const [target, content] of mcpChanges) fs.writeFileSync(target, content);
   for (const target of mcpDeleteCandidates) {
     if (!fs.existsSync(target)) continue;
@@ -454,10 +629,14 @@ function uninstallPlan(options) {
   const installationManifest = manifestPath(installRoot, options.host);
   const existingManifest = readManifest(installationManifest);
   if (!existingManifest) throw new Error('no installation manifest found; cannot safely uninstall untracked files');
+  const mode = requestedMode(options);
   if (existingManifest.host !== options.host || existingManifest.profile !== options.profile || existingManifest.scope !== (options.global ? 'global' : 'project')) {
     throw new Error(`installation manifest belongs to ${existingManifest.host}/${existingManifest.profile}, not ${options.host}/${options.profile}`);
   }
-  return { options, host: { id: existingManifest.host, displayName: existingManifest.host }, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], mcpActions: [], skipped: [] };
+  if (installationMode(existingManifest) !== mode) throw new Error(`installation manifest mode is ${installationMode(existingManifest)}, not ${mode}`);
+  const host = readJson(HOST_DIR).hosts.find((entry) => entry.id === options.host);
+  const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
+  return { options, mode, scope: existingManifest.scope, host, adapter, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], mcpActions: [], projectInstructions: [], skipped: [], contextualSkills: [], contextualRoots: [], staleContextFiles: [] };
 }
 
 function execute(plan) {
@@ -470,11 +649,22 @@ function main() {
   const plan = options.uninstall ? uninstallPlan(options) : buildPlan(options);
   console.log(`${plan.options.dryRun ? 'Dry run' : plan.options.uninstall ? 'Uninstall' : 'Install'}: ${plan.host.displayName} / ${plan.profile.name}`);
   console.log(`Target root: ${plan.installRoot}`);
+  if (!plan.options.uninstall && plan.mode === 'overlay') {
+    console.log('Global foundation: available');
+    console.log('Project overlay: contextual Skills only');
+    console.log(`  reused globally: ${plan.options.profile} foundation (Base Skills, Commands, Agents, References, MCP)`);
+  }
+  if (!plan.options.uninstall && plan.detectedContext) {
+    console.log(`Detected project context: ${plan.contextualSkills.map((skill) => skill.id).join(', ') || 'none'}`);
+    for (const skill of plan.contextualSkills) console.log(`  contextual skill: + ${skill.id} (${skill.evidence.join('; ')})`);
+  }
   if (plan.options.uninstall) {
     for (const entry of plan.existingManifest.files || []) console.log(`${plan.options.dryRun ? '  would remove' : '  remove'} ${entry.path}`);
+    for (const entry of plan.existingManifest.projectInstructions || []) console.log(`${plan.options.dryRun ? '  would update' : '  update'} project instructions ${entry.path}: remove ${START_MARKER} ... ${END_MARKER}`);
   } else {
     for (const action of plan.actions) console.log(`${plan.options.dryRun ? '  would copy' : '  copy'} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
     for (const action of plan.mcpActions) console.log(`${plan.options.dryRun ? '  would merge MCP' : '  merge MCP'} ${path.relative(plan.installRoot, action.target)}: ${action.entries.map((entry) => entry.id).join(', ')}`);
+    for (const action of plan.projectInstructions) if (action.changed) console.log(`${plan.options.dryRun ? '  would update' : '  update'} project instructions ${action.path}: ${action.created ? 'create' : 'merge'} ${START_MARKER} ... ${END_MARKER}`);
     console.log(`${plan.options.dryRun ? '  would write' : '  write'} ${path.relative(plan.installRoot, plan.installationManifest)}`);
   }
   for (const skipped of plan.skipped) console.log(`  skip ${skipped}`);

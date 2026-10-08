@@ -31,6 +31,9 @@ function main() {
     if (!fs.existsSync(adapterFile)) throw new Error(`missing adapter for ${host.id}: ${host.adapterPath}`);
     const adapter = readJson(adapterFile);
     if (adapter.host !== host.id) throw new Error(`adapter host mismatch for ${host.id}`);
+    if (!['native', 'fallback', 'limited', 'unsupported'].includes(adapter.globalCommandSupport)) {
+      throw new Error(`adapter ${host.id} must declare globalCommandSupport as native, fallback, limited, or unsupported`);
+    }
     if (!adapter.mapping || typeof adapter.mapping !== 'object') throw new Error(`adapter mapping missing for ${host.id}`);
 
     for (const type of REQUIRED_MAPPING_TYPES) {
@@ -49,6 +52,17 @@ function main() {
     const destinations = adapter.installDestinations;
     if (!destinations || !destinations.project || !destinations.global) {
       throw new Error(`adapter ${host.id} must declare project and global install destinations`);
+    }
+    const instructions = adapter.projectInstructions;
+    if (!instructions || typeof instructions.path !== 'string' || !instructions.path || path.isAbsolute(instructions.path) || instructions.path.split('/').includes('..') || (instructions.createPrefix !== undefined && typeof instructions.createPrefix !== 'string')) {
+      throw new Error(`adapter ${host.id} must declare a safe project instruction path`);
+    }
+    const hasGlobalCommands = Boolean(destinations.global.commands);
+    if (adapter.globalCommandSupport === 'native' && !hasGlobalCommands) {
+      throw new Error(`adapter ${host.id} declares native global Commands without a global destination`);
+    }
+    if (adapter.globalCommandSupport !== 'native' && hasGlobalCommands) {
+      throw new Error(`adapter ${host.id} declares non-native global Commands with a global destination`);
     }
     for (const scope of ['project', 'global']) {
       for (const [type, destination] of Object.entries(destinations[scope])) {

@@ -1,5 +1,6 @@
 {
   "host": "gemini",
+  "globalCommandSupport": "native",
   "status": "verified",
   "officialDocs": [
     "https://geminicli.com/docs/cli/skills/",
@@ -44,6 +45,7 @@
     "nativeSourceDirectory": ".gemini/commands"
   },
   "mcpStrategy": "native-merge",
+  "projectInstructions": {"path": "GEMINI.md"},
   "mcpConfig": {
     "format": "json",
     "projectPath": ".gemini/settings.json",

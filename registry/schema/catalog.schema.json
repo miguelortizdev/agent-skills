@@ -1,6 +1,40 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/addyosmani/agent-skills/schemas/catalog.schema.json",
+  "$defs": {
+    "matchRule": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["file", "path", "dependency", "text"]},
+        "match": {"enum": ["basename", "relative", "suffix"]},
+        "file": {"type": "string", "minLength": 1},
+        "names": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "files": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "patterns": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "file"}}}, "then": {"required": ["paths"]}},
+        {"if": {"properties": {"type": {"const": "path"}}}, "then": {"required": ["paths"]}},
+        {"if": {"properties": {"type": {"const": "dependency"}}}, "then": {"required": ["names"]}},
+        {"if": {"properties": {"type": {"const": "text"}}}, "then": {"required": ["files", "patterns"]}}
+      ]
+    },
+    "contextRule": {
+      "anyOf": [
+        {"$ref": "#/$defs/matchRule"},
+        {"type": "object", "required": ["anyOf"], "additionalProperties": false, "properties": {"anyOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}}},
+        {"type": "object", "required": ["allOf"], "additionalProperties": false, "properties": {"allOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}}},
+        {"type": "object", "required": ["noneOf"], "additionalProperties": false, "properties": {"noneOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}}},
+        {"type": "object", "required": ["allOf", "noneOf"], "additionalProperties": false, "properties": {"allOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}, "noneOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}}},
+        {"type": "object", "required": ["anyOf", "allOf"], "additionalProperties": false, "properties": {"anyOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}, "allOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}}},
+        {"type": "object", "required": ["anyOf", "noneOf"], "additionalProperties": false, "properties": {"anyOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}, "noneOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}}},
+        {"type": "object", "required": ["allOf", "anyOf", "noneOf"], "additionalProperties": false, "properties": {"anyOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}, "allOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}, "noneOf": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/contextRule"}}}}
+      ]
+    }
+  },
   "type": "object",
   "required": ["version", "sourceOfTruth", "assets"],
   "additionalProperties": false,
@@ -11,16 +45,20 @@
       "type": "array",
       "items": {
         "type": "object",
-          "required": ["id", "type", "path", "source", "enabled"],
+        "required": ["id", "type", "path", "source", "enabled"],
         "additionalProperties": false,
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
           "type": {"enum": ["skill", "command", "agent", "reference", "eval", "hook", "script"]},
           "path": {"type": "string", "pattern": "^[^/].*[^/]$"},
           "source": {"enum": ["upstream", "custom"]},
-          "enabled": {"type": "boolean"}
-          ,"requires": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true}
-        }
+          "enabled": {"type": "boolean"},
+          "requires": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "uniqueItems": true},
+          "tags": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "contextual": {"const": true},
+          "appliesWhen": {"$ref": "#/$defs/contextRule"}
+        },
+        "allOf": [{"if": {"properties": {"contextual": {"const": true}}}, "then": {"required": ["appliesWhen"]}]
       }
     }
   }

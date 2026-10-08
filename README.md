@@ -2,6 +2,14 @@
 
 **Production-grade engineering skills for AI coding agents.**
 
+## Decameron Documentation
+
+🇪🇸 [Español](docs/es/start-here.md) | 🇺🇸 [English](docs/en/start-here.md)
+
+Choose a language to start with the Decameron product documentation. The current
+production catalog contains 25 base Skills and 0 production Contextual Skills;
+the Generic Context Rules Engine is ready for future additions.
+
 Skills encode the workflows, quality gates, and best practices that senior engineers use when building software. These ones are packaged so AI agents follow them consistently across every phase of development.
 
 <a href="https://trendshift.io/repositories/25200" target="_blank"><img src="https://trendshift.io/api/badge/repositories/25200" alt="addyosmani%2Fagent-skills | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -46,7 +54,7 @@ Skills also activate automatically based on what you're doing — designing an A
 **Fastest path — any agent, one command.** The open [skills CLI](https://github.com/vercel-labs/skills) installs into 70+ agents (Claude Code, Cursor, Codex, Copilot, Cline, and more):
 
 ```bash
-npx skills add addyosmani/agent-skills            # install all 25 skills
+ npx skills add addyosmani/agent-skills            # install the 25 base skills
 npx skills add addyosmani/agent-skills --list     # browse before installing
 ```
 
@@ -56,6 +64,39 @@ Or grab individual skills:
 npx skills add addyosmani/agent-skills --skill code-review-and-quality   # five-axis review before merge
 npx skills add addyosmani/agent-skills --skill interview-me              # requirements interrogation, one question at a time
 npx skills add addyosmani/agent-skills --skill test-driven-development   # red-green-refactor, enforced
+```
+
+### Recommended Developer Workflow
+
+The repository installer supports a shared Global Foundation and a lightweight
+Project Context Overlay. Install the foundation once, then sync project context
+when contextual Skills are registered. The `decameron` profile includes the full
+25-Skill, 9-Command, 4-Agent, and 7-Reference foundation plus corporate MCP.
+
+```bash
+node scripts/install-agent-standard.js \
+  --global --host codex --profile decameron
+
+cd my-project
+
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  sync --host codex --profile decameron
+```
+
+Use a full project installation when the repository must be self-contained:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  --project --host codex --profile decameron
+```
+
+The three strategies are documented in
+[Installation Strategies](docs/installation.md#installation-strategies).
+
+<!-- doc-test: executable -->
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  --global --host codex --profile decameron --dry-run
 ```
 
 > **Installing one skill?** A per-skill `npx` install copies only
@@ -222,9 +263,9 @@ Already installed? How you roll the pack out depends on your codebase. The **[Ad
 
 ---
 
-## All 25 Skills
+## Base Skills
 
-The commands above are entry points. The pack includes 25 skills total — 24 lifecycle skills plus the `using-agent-skills` meta-skill. Each skill is a structured workflow with steps, verification gates, and anti-rationalization tables. You can also reference any skill directly.
+The commands above are entry points. The pack includes 25 base skills — 24 lifecycle skills plus the `using-agent-skills` meta-skill. Each skill is a structured workflow with steps, verification gates, and anti-rationalization tables. Projects may also receive contextual Skills for detected technologies; see [context-aware Skills](docs/context-aware-skills.md).
 
 ### Meta - Discover which skill applies
 
@@ -356,7 +397,7 @@ The portable core stays in shared directories. Host-specific paths are native di
 
 | Layer / consumer | Repository paths | Purpose |
 |---|---|---|
-| Shared workflow core | `skills/` (25 skills) | Portable `SKILL.md` workflows used by every integration |
+| Shared workflow core | `skills/` (25 base + contextual skills) | Portable `SKILL.md` workflows used by every integration |
 | Shared review material | `agents/` (4 personas), `references/` (7 checklists) | Specialist reviewers and pack-level checklists carried by whole-repo installs |
 | Claude Code adapter | `.claude/commands/` (9 commands), `.claude-plugin/`, `hooks/` | Slash-command wrappers, marketplace metadata, and lifecycle hooks |
 | Gemini CLI adapter | `.gemini/commands/` (9 commands) | Gemini-native TOML command wrappers |

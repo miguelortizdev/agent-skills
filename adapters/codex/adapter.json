@@ -1,5 +1,6 @@
 {
   "host": "codex",
+  "globalCommandSupport": "fallback",
   "status": "verified",
   "officialDocs": [
     "https://developers.openai.com/codex/skills",
@@ -38,6 +39,7 @@
     "format": "toml"
   },
   "mcpStrategy": "native-merge",
+  "projectInstructions": {"path": "AGENTS.md"},
   "mcpConfig": {
     "format": "toml",
     "projectPath": ".codex/config.toml",

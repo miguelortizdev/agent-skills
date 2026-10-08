@@ -23,6 +23,96 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 Supported hosts are `claude`, `codex`, `cursor`, `opencode`, `gemini`, and
 `openchamber`. Supported profiles are `default` and `decameron`.
 
+Project-scoped installs also detect supported technology markers and add
+contextual Skills. See [Context-Aware Skills](context-aware-skills.md).
+
+## Installation Strategies
+
+The installer supports three deliberately different strategies:
+
+| Mode | Foundation | Context | Global dependency |
+| --- | --- | --- | --- |
+| Global Foundation | Yes | No | N/A |
+| Full Project | Yes | Yes | No |
+| Project Context Overlay | No | Yes | Yes |
+
+### Global Foundation
+
+Install the shared foundation once for a host and profile:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  --host codex --profile decameron --global
+```
+
+This installs the profile's Base Skills, Commands, Agents, References, MCP,
+and ownership manifest globally. It never detects the current project.
+
+### Full Project
+
+Use a self-contained project installation for CI/CD, portable repositories, or
+isolated environments:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  --host codex --profile decameron --project
+```
+
+This preserves the existing behavior: foundation assets plus detected
+contextual Skills are materialized in the project.
+
+### Project Context Overlay
+
+When a compatible global foundation already exists, sync only the project's
+contextual Skills:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  sync --host codex --profile decameron
+```
+
+`--overlay` is the equivalent explicit form. The global host and profile must
+match. The project receives contextual Skills only; Base Skills, Commands,
+Agents, References, and MCP remain global. Use `--dry-run` to preview the
+overlay without writes and `--overlay --uninstall` to remove only its managed
+contextual files.
+
+The overlay records `mode: overlay` in the project manifest. Existing full
+project installations are not silently converted; uninstall the full project
+installation explicitly before switching to overlay. An overlay can be
+expanded to a full project installation with `--project`.
+
+### Recommended Workflows
+
+Developers should prefer a global foundation plus a project overlay:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  --global --host codex --profile decameron
+cd my-project
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  sync --host codex --profile decameron
+```
+
+CI/CD and isolated environments should prefer the full project strategy.
+
+### Overlay Support Matrix
+
+The overlay lifecycle is covered for every supported host and uses each
+adapter's existing global and project skill destinations:
+
+| Host | Global Foundation | Full Project | Context Overlay |
+| --- | --- | --- | --- |
+| Claude | SUPPORTED | SUPPORTED | SUPPORTED |
+| Codex | SUPPORTED | SUPPORTED | SUPPORTED |
+| Cursor | SUPPORTED | SUPPORTED | SUPPORTED |
+| Gemini | SUPPORTED | SUPPORTED | SUPPORTED |
+| OpenCode | SUPPORTED | SUPPORTED | SUPPORTED |
+| OpenChamber | SUPPORTED | SUPPORTED | SUPPORTED |
+
+MCP remains foundation-only in overlay mode. Commands and Agents are not
+duplicated into an overlay.
+
 ## Install
 
 ```bash
@@ -37,7 +127,7 @@ host adapter supports that scope. The installer refuses to overwrite
 conflicting files, follows no symlinks, and writes an ownership manifest at:
 
 ```text
-.agent-standard/installation.json
+.agent-standard/installations/<host>.json
 ```
 
 ## Change Profile
@@ -81,10 +171,45 @@ for supported scopes, paths, and uninstall behavior.
 | Profile | Purpose |
 | --- | --- |
 | `default` | All 25 upstream Skills, 9 Commands, 4 Agents, shared References, and eval metadata. |
-| `decameron` | Corporate baseline with security, API, observability, review, and shipping capabilities. |
+| `decameron` | The complete engineering foundation plus the corporate `context7` and `kubernetes` MCP servers. |
 
 Profiles select canonical IDs from `registry/catalog.json`; they do not embed
 Skill or Agent content.
+
+`default` and `decameron` both select the complete foundation:
+
+```text
+25 Base Skills
+9 Commands
+4 Agents
+7 Shared References
+```
+
+The difference is MCP configuration: `default` selects no MCP servers, while
+`decameron` selects `context7` and `kubernetes`. Contextual Skills are resolved
+separately at project scope and are not part of either profile's 25 Base Skills.
+
+## Global Capability Matrix
+
+Canonical profile selection is independent from host-native materialization. A
+host may materialize a selected Command natively, use the documented underlying
+Skill fallback, or have a limited scope. The current global matrix is:
+
+| Host | Skills | Commands | Agents | References | MCP | Overlay Skills |
+| --- | --- | --- | --- | --- | --- | --- |
+| Claude | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+| Codex | NATIVE | FALLBACK | NATIVE | NATIVE | FALLBACK | NATIVE |
+| Cursor | NATIVE | LIMITED | NATIVE | NATIVE | FALLBACK | NATIVE |
+| Gemini | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+| OpenCode | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+| OpenChamber | NATIVE | NATIVE | NATIVE | NATIVE | FALLBACK | NATIVE |
+
+Codex has no native global slash-command destination; lifecycle Commands remain
+available through their underlying Skills. Cursor Commands are project-scoped
+in the current official documentation, so the global installer reports no
+native global Command directory rather than inventing one. MCP fallback means
+the installer manages the host's documented configuration surface while the
+host remains responsible for native discovery/settings behavior.
 
 ## Validate
 

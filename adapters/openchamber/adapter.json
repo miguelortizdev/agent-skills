@@ -1,5 +1,6 @@
 {
   "host": "openchamber",
+  "globalCommandSupport": "native",
   "status": "verified",
   "officialDocs": [
     "https://docs.openchamber.dev/skills/",
@@ -50,6 +51,7 @@
     "addMode": "subagent"
   },
   "mcpStrategy": "native-merge",
+  "projectInstructions": {"path": "AGENTS.md"},
   "mcpConfig": {
     "format": "opencode-json",
     "projectPath": "opencode.json",

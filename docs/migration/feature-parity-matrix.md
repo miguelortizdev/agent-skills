@@ -64,7 +64,7 @@ They must not duplicate or replace the upstream assets above.
 | Host registry | n/a | present | `registry/hosts.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Records native paths, scopes, and fallback behavior. |
 | Registry schemas | n/a | present | `registry/schema/` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Deterministic validation contract. |
 | Default profile | n/a | present | `profiles/default.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Selects assets without copying content. |
-| Decameron profile | n/a | present | `profiles/decameron.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Corporate selection/configuration only. |
+| Decameron profile | n/a | present | `profiles/decameron.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Complete engineering foundation plus corporate MCP selection. |
 | Provider-neutral MCP registry | n/a | present | `mcp/registry.json` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Environment variable references only; no secrets. |
 | Host adapters | n/a | present | `adapters/<host>/` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Thin mappings, native representations, and documented fallbacks. |
 | Cross-platform installer | n/a | present | `scripts/install-agent-standard.js` | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | VERIFIED | Node.js implementation; dry-run, scoped destinations, and safe writes. |
