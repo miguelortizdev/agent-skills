@@ -41,6 +41,14 @@
     "extension": ".md",
     "filenameMap": {"plan": "plan"}
   },
-  "mcpStrategy": "documented-fallback",
+  "mcpStrategy": "native-merge",
+  "mcpConfig": {
+    "format": "json",
+    "projectPath": ".cursor/mcp.json",
+    "globalPath": ".cursor/mcp.json",
+    "rootKey": "mcpServers",
+    "envSyntax": "cursor",
+    "stdioType": "stdio"
+  },
   "progressiveDisclosure": "Keep long workflows in .cursor/skills and keep .cursor/rules concise."
 }

@@ -62,10 +62,7 @@ jobs:
           node scripts/check-agent-skills-upstream.js --source .
 
       - name: Test adapter and installer behavior
-        run: >-
-          node --test
-          scripts/validate-adapter-drift-test.js
-          scripts/install-agent-standard-test.js
+        run: node scripts/test-all.js
 
   routing:
     name: Routing evaluation quality gate

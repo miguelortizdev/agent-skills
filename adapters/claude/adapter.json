@@ -42,7 +42,15 @@
     "filenameMap": {"plan": "plan"},
     "nativeSourceDirectory": ".claude/commands"
   },
-  "mcpStrategy": "documented-fallback",
+  "mcpStrategy": "native-merge",
+  "mcpConfig": {
+    "format": "json",
+    "projectPath": ".mcp.json",
+    "globalPath": ".claude.json",
+    "rootKey": "mcpServers",
+    "envSyntax": "claude",
+    "remoteType": "http"
+  },
   "fallbacks": {
     "unsupported": "Keep the canonical asset and invoke it through its underlying Skill or documented manual configuration."
   }

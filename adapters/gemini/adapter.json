@@ -43,6 +43,14 @@
     "filenameMap": {"plan": "planning"},
     "nativeSourceDirectory": ".gemini/commands"
   },
-  "mcpStrategy": "documented-fallback",
+  "mcpStrategy": "native-merge",
+  "mcpConfig": {
+    "format": "json",
+    "projectPath": ".gemini/settings.json",
+    "globalPath": ".gemini/settings.json",
+    "rootKey": "mcpServers",
+    "envSyntax": "gemini",
+    "remoteField": "httpUrl"
+  },
   "progressiveDisclosure": "Keep Skills on demand; use GEMINI.md only for persistent project context."
 }

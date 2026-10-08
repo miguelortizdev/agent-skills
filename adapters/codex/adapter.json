@@ -37,6 +37,11 @@
   "agentRepresentation": {
     "format": "toml"
   },
-  "mcpStrategy": "documented-fallback",
+  "mcpStrategy": "native-merge",
+  "mcpConfig": {
+    "format": "toml",
+    "projectPath": ".codex/config.toml",
+    "globalPath": ".codex/config.toml"
+  },
   "progressiveDisclosure": "Do not preload using-agent-skills when Codex native routing is available."
 }

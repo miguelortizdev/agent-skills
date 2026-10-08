@@ -10,5 +10,5 @@
   "agents": ["code-reviewer", "security-auditor"],
   "references": ["definition-of-done", "security-checklist", "observability-checklist"],
   "evals": ["routing-evals"],
-  "mcp": []
+  "mcp": ["context7", "kubernetes"]
 }

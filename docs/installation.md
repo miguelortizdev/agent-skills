@@ -71,10 +71,10 @@ node scripts/validate-installation-integrity.js \
   --root "$PWD" --host cursor --profile decameron
 ```
 
-MCP profiles are validated against `mcp/registry.json`, but the installer does
-not write host configuration files. Selected MCP entries are reported as a
-documented fallback and must be configured through the host's native UI or
-configuration file.
+MCP profiles are validated against `mcp/registry.json`. The installer resolves
+selected servers into each host's documented native configuration format and
+merges only its managed entries. See [MCP installation](mcp-installation.md)
+for supported scopes, paths, and uninstall behavior.
 
 ## Profiles
 
@@ -91,7 +91,9 @@ Skill or Agent content.
 ```bash
 node scripts/validate-registry.js
 node scripts/validate-profiles.js
+node scripts/validate-mcp.js
 node scripts/validate-adapter-drift.js
+node scripts/validate-reference-links.js
 node scripts/validate-upstream-parity.js
 ```
 
