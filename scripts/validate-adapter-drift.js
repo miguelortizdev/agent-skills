@@ -53,6 +53,10 @@ function main() {
     if (!destinations || !destinations.project || !destinations.global) {
       throw new Error(`adapter ${host.id} must declare project and global install destinations`);
     }
+    const instructions = adapter.projectInstructions;
+    if (!instructions || typeof instructions.path !== 'string' || !instructions.path || path.isAbsolute(instructions.path) || instructions.path.split('/').includes('..') || (instructions.createPrefix !== undefined && typeof instructions.createPrefix !== 'string')) {
+      throw new Error(`adapter ${host.id} must declare a safe project instruction path`);
+    }
     const hasGlobalCommands = Boolean(destinations.global.commands);
     if (adapter.globalCommandSupport === 'native' && !hasGlobalCommands) {
       throw new Error(`adapter ${host.id} declares native global Commands without a global destination`);

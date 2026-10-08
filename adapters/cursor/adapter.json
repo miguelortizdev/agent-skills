@@ -43,6 +43,7 @@
     "filenameMap": {"plan": "plan"}
   },
   "mcpStrategy": "native-merge",
+  "projectInstructions": {"path": ".cursor/rules/ai-engineering-standard.mdc", "createPrefix": "---\ndescription: AI Engineering Standard project instructions\nalwaysApply: true\n---\n\n"},
   "mcpConfig": {
     "format": "json",
     "projectPath": ".cursor/mcp.json",

@@ -73,7 +73,7 @@ test('dry-run reports actions without writing files', () => {
   assert.match(result.stdout, /context7/);
   assert.doesNotMatch(result.stdout, /secret|token-value|abc123/i);
   assert.match(result.stdout, /No files changed/);
-  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'rules', 'ai-engineering-standard.mdc')), false);
 });
 
 test('installs commands using each host native representation', () => {
@@ -682,14 +682,71 @@ test('installs a project overlay only after a matching global foundation exists'
   assert.match(overlay.stdout, /Global foundation: available/);
   assert.match(overlay.stdout, /Project overlay/);
   assert.match(overlay.stdout, /Detected project context: none/);
-  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'rules', 'ai-engineering-standard.mdc')), true);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'skills', 'api-and-interface-design')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'commands')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'agents')), false);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'mcp.json')), false);
 
-  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), true);
   assert.equal(fs.existsSync(path.join(home, '.cursor', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
+});
+
+test('sync creates and updates the adapter-declared project instruction for every host', () => {
+  const paths = {
+    claude: 'CLAUDE.md',
+    codex: 'AGENTS.md',
+    gemini: 'GEMINI.md',
+    cursor: '.cursor/rules/ai-engineering-standard.mdc',
+    opencode: 'AGENTS.md',
+    openchamber: 'AGENTS.md',
+  };
+  for (const [host, instructionPath] of Object.entries(paths)) {
+    const root = makeSandbox();
+    const home = makeSandbox();
+    assert.equal(run(root, '--host', host, '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0, host);
+    const dryRun = run(root, 'sync', '--host', host, '--profile', 'decameron', '--dry-run', { env: { HOME: home } });
+    assert.equal(dryRun.status, 0, `${host}: ${dryRun.stdout}${dryRun.stderr}`);
+    assert.match(dryRun.stdout, new RegExp(instructionPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(dryRun.stdout, /ai-engineering-standard:start/);
+    assert.equal(fs.existsSync(path.join(root, instructionPath)), false, host);
+
+    const first = run(root, 'sync', '--host', host, '--profile', 'decameron', { env: { HOME: home } });
+    assert.equal(first.status, 0, `${host}: ${first.stdout}${first.stderr}`);
+    const target = path.join(root, instructionPath);
+    const content = fs.readFileSync(target, 'utf8');
+    assert.equal(content.split('<!-- ai-engineering-standard:start -->').length - 1, 1, host);
+    assert.equal(run(root, 'sync', '--host', host, '--profile', 'decameron', { env: { HOME: home } }).status, 0, host);
+    assert.equal(fs.readFileSync(target, 'utf8'), content, host);
+  }
+});
+
+test('sync preserves user content and uninstall removes only the managed block', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  const target = path.join(root, 'CLAUDE.md');
+  fs.writeFileSync(target, '# User instructions\n\nKeep this content.\n');
+  assert.equal(run(root, '--host', 'claude', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
+  assert.equal(run(root, 'sync', '--host', 'claude', '--profile', 'decameron', { env: { HOME: home } }).status, 0);
+  assert.match(fs.readFileSync(target, 'utf8'), /Keep this content/);
+  const uninstall = run(root, '--host', 'claude', '--profile', 'decameron', '--overlay', '--uninstall', { env: { HOME: home } });
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.match(fs.readFileSync(target, 'utf8'), /^# User instructions\n\nKeep this content\.\n+$/);
+});
+
+test('shared AGENTS.md ownership keeps instructions until the last host uninstalls', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  for (const host of ['codex', 'opencode']) {
+    assert.equal(run(root, '--host', host, '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0, host);
+    assert.equal(run(root, 'sync', '--host', host, '--profile', 'decameron', { env: { HOME: home } }).status, 0, host);
+  }
+  const agents = path.join(root, 'AGENTS.md');
+  assert.equal(fs.readFileSync(agents, 'utf8').split('<!-- ai-engineering-standard:start -->').length - 1, 1);
+  assert.equal(run(root, '--host', 'codex', '--profile', 'decameron', '--overlay', '--uninstall', { env: { HOME: home } }).status, 0);
+  assert.equal(fs.existsSync(agents), true);
+  assert.equal(run(root, '--host', 'opencode', '--profile', 'decameron', '--overlay', '--uninstall', { env: { HOME: home } }).status, 0);
+  assert.equal(fs.existsSync(agents), false);
 });
 
 test('rejects an overlay without a compatible global foundation', () => {
@@ -747,7 +804,7 @@ test('reconciles stale managed contextual Skills after production removal', () =
   const removed = run(root, 'sync', '--host', 'claude', '--profile', 'decameron', { env: { HOME: home } });
   assert.equal(removed.status, 0, removed.stdout + removed.stderr);
   assert.equal(fs.existsSync(overlayFile), false);
-  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), true);
   assert.equal(fs.readFileSync(userFile, 'utf8'), 'user content\n');
   assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
 });
@@ -779,7 +836,7 @@ test('does not allow replacing a full project installation with an overlay', () 
   assert.match(overlay.stderr, /full project installation.*uninstall/i);
 });
 
-test('supports sync as an overlay alias and dry-run without context writes nothing', () => {
+test('supports sync as an overlay alias and dry-run without context writes', () => {
   const root = makeSandbox();
   const home = makeSandbox();
   assert.equal(run(root, '--host', 'gemini', '--profile', 'decameron', '--global', { env: { HOME: home } }).status, 0);
@@ -794,7 +851,7 @@ test('supports sync as an overlay alias and dry-run without context writes nothi
 
   const install = run(root, 'sync', '--host', 'gemini', '--profile', 'decameron', { env: { HOME: home } });
   assert.equal(install.status, 0, install.stdout + install.stderr);
-  assert.deepEqual(relativeFiles(root).sort(), before);
+  assert.deepEqual(relativeFiles(root).sort(), [...before, 'GEMINI.md', '.agent-standard/installations/gemini.json'].sort());
 });
 
 test('supports zero-context overlays for every host without foundation duplication', () => {
@@ -814,7 +871,8 @@ test('supports zero-context overlays for every host without foundation duplicati
     assert.equal(globalInstall.status, 0, `${host} global: ${globalInstall.stdout}${globalInstall.stderr}`);
     const overlay = run(root, '--host', host, '--profile', 'decameron', '--overlay', { env: { HOME: home } });
     assert.equal(overlay.status, 0, `${host} overlay: ${overlay.stdout}${overlay.stderr}`);
-    assert.equal(fs.existsSync(path.join(root, destination)), false, host);
+    const instructionPath = host === 'claude' ? 'CLAUDE.md' : host === 'codex' || host === 'opencode' || host === 'openchamber' ? 'AGENTS.md' : host === 'gemini' ? 'GEMINI.md' : '.cursor/rules/ai-engineering-standard.mdc';
+    assert.equal(fs.existsSync(path.join(root, instructionPath)), true, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'skills', 'api-and-interface-design')), false, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'commands')), false, host);
     assert.equal(fs.existsSync(path.join(root, destination, 'agents')), false, host);
@@ -859,12 +917,12 @@ test('accepts legacy global manifests without mode when no contextual Skills are
   fs.writeFileSync(globalManifestPath, JSON.stringify(globalManifest));
   assert.equal(run(root, 'sync', '--host', 'cursor', '--profile', 'decameron', { env: { HOME: home } }).status, 0);
 
-  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'rules', 'ai-engineering-standard.mdc')), true);
   const uninstallGlobal = run(root, '--host', 'cursor', '--profile', 'decameron', '--global', '--uninstall', { env: { HOME: home } });
   assert.equal(uninstallGlobal.status, 0, uninstallGlobal.stdout + uninstallGlobal.stderr);
-  assert.equal(fs.existsSync(path.join(root, '.cursor')), false);
+  assert.equal(fs.existsSync(path.join(root, '.cursor', 'rules', 'ai-engineering-standard.mdc')), true);
 
-  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard')), true);
 });
 
 test('materializes the complete Decameron foundation globally with explicit command fallbacks', () => {

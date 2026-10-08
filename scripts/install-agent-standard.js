@@ -16,6 +16,7 @@ const TYPE_FIELDS = { skill: 'skills', command: 'commands', agent: 'agents', ref
 const mcp = require('./lib/mcp');
 const { detectProjectContext } = require('./lib/context-detector');
 const { resolveContextualSkills } = require('./lib/context-resolver');
+const { END_MARKER, START_MARKER, mergeProjectInstructions, removeProjectInstructions } = require('./lib/project-instructions');
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -68,6 +69,15 @@ function filesIn(source, relative = '') {
   if (stat.isSymbolicLink()) throw new Error(`source symlink is not installable: ${path.relative(ROOT, current)}`);
   if (stat.isFile()) return [{ source: current, relative: relative || path.basename(current) }];
   return fs.readdirSync(current).flatMap((entry) => filesIn(source, path.join(relative, entry)));
+}
+
+function projectInstructionAction(adapter, installRoot) {
+  const target = safePath(installRoot, adapter.projectInstructions.path);
+  const existed = fs.existsSync(target);
+  const current = existed ? fs.readFileSync(target, 'utf8') : '';
+  const createPrefix = adapter.projectInstructions.createPrefix || '';
+  const merged = mergeProjectInstructions(current, createPrefix);
+  return { target, path: path.relative(installRoot, target), content: merged.content, changed: merged.changed, created: !existed, emptyContent: createPrefix };
 }
 
 function hashFile(file) {
@@ -260,6 +270,13 @@ function buildPlan(options) {
   const selectedProfile = { ...profile };
   const detectedContext = options.global ? null : detectProjectContext(installRoot);
   const contextualSkills = options.global ? [] : resolveContextualSkills(detectedContext, catalog);
+  const projectInstructions = mode === 'overlay' ? [projectInstructionAction(adapter, installRoot)] : [];
+  const otherInstructionOwners = readInstallationManifests(installRoot)
+    .filter((entry) => entry.file !== installationManifest)
+    .flatMap((entry) => entry.manifest.projectInstructions || []);
+  for (const instruction of projectInstructions) {
+    if (otherInstructionOwners.some((owner) => owner.path === instruction.path && owner.created)) instruction.created = true;
+  }
   const contextualIds = new Set(contextualSkills.map((skill) => skill.id));
   const previousContextualSkills = existingManifest?.contextualSkills || [];
   const staleContextFiles = previousContextualSkills
@@ -352,7 +369,7 @@ function buildPlan(options) {
     evidence: skill.evidence,
     root: safePath(installRoot, path.join(installDestinations(adapter, scope).skills, skill.id)),
   }));
-  return { options, mode, scope, host, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, globalFoundation };
+  return { options, mode, scope, host, adapter, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, projectInstructions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, globalFoundation };
 }
 
 function executeInstall(plan) {
@@ -387,6 +404,10 @@ function executeInstall(plan) {
       conflicts.push(action.target);
     }
   }
+  for (const action of plan.projectInstructions) {
+    assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
+    if (fs.existsSync(action.target) && fs.lstatSync(action.target).isSymbolicLink()) throw new Error(`refusing to write through symlink: ${action.target}`);
+  }
   for (const action of plan.mcpActions) {
     assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
     if (action.changed && fs.existsSync(action.target) && fs.lstatSync(action.target).isSymbolicLink()) throw new Error(`refusing to write through symlink: ${action.target}`);
@@ -407,6 +428,15 @@ function executeInstall(plan) {
       created: previousFiles.has(relative) ? previousFiles.get(relative).created : !existed,
     });
   }
+  const projectInstructionRecords = [];
+  for (const action of plan.projectInstructions) {
+    if (action.changed) {
+      fs.mkdirSync(path.dirname(action.target), { recursive: true });
+      fs.writeFileSync(action.target, action.content, { flag: fs.existsSync(action.target) ? 'w' : 'wx' });
+    }
+    const previous = (plan.existingManifest?.projectInstructions || []).find((entry) => entry.path === action.path);
+    projectInstructionRecords.push({ path: action.path, created: previous ? previous.created : action.created, emptyContent: action.emptyContent, sha256: hashFile(action.target) });
+  }
   const mcpRecords = [];
   for (const action of plan.mcpActions) {
     if (action.changed) {
@@ -425,7 +455,7 @@ function executeInstall(plan) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
-  if (plan.mode === 'overlay' && plan.contextualSkills.length === 0) {
+  if (plan.mode === 'overlay' && plan.contextualSkills.length === 0 && plan.projectInstructions.length === 0) {
     if (plan.existingManifest) {
       fs.unlinkSync(plan.installationManifest);
       removeEmptyParents(path.dirname(plan.installationManifest), plan.installRoot);
@@ -453,6 +483,7 @@ function executeInstall(plan) {
     foundation: plan.mode === 'overlay' ? { source: 'global', required: true } : undefined,
     context: context || undefined,
     files,
+    projectInstructions: projectInstructionRecords,
     contextualSkills: contextualManifest,
     mcp: mcpRecords,
   });
@@ -476,6 +507,23 @@ function executeUninstall(plan) {
   for (const entry of otherManifests) for (const file of entry.manifest.files || []) {
     if (!otherOwners.has(file.path)) otherOwners.set(file.path, []);
     otherOwners.get(file.path).push(entry);
+  }
+  const otherInstructions = new Map();
+  for (const owner of otherManifests) for (const instruction of owner.manifest.projectInstructions || []) {
+    if (!otherInstructions.has(instruction.path)) otherInstructions.set(instruction.path, []);
+    otherInstructions.get(instruction.path).push(owner);
+  }
+  const instructionWrites = [];
+  const instructionDeletes = [];
+  for (const entry of plan.existingManifest.projectInstructions || []) {
+    const target = safePath(plan.installRoot, entry.path);
+    if (!fs.existsSync(target) || (otherInstructions.get(entry.path) || []).length) continue;
+    assertNoSymlinkPath(plan.installRoot, path.dirname(target));
+    if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile()) throw new Error(`refusing to uninstall modified files:\n${target}`);
+    const result = removeProjectInstructions(fs.readFileSync(target, 'utf8'));
+    if (!result.changed) continue;
+    if (entry.created && result.content === (entry.emptyContent || '')) instructionDeletes.push(target);
+    else instructionWrites.push({ target, content: result.content });
   }
   for (const entry of plan.existingManifest.files || []) {
     const target = safePath(plan.installRoot, entry.path);
@@ -544,6 +592,11 @@ function executeUninstall(plan) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
+  for (const action of instructionWrites) fs.writeFileSync(action.target, action.content);
+  for (const target of instructionDeletes) {
+    fs.unlinkSync(target);
+    removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
   for (const [target, content] of mcpChanges) fs.writeFileSync(target, content);
   for (const target of mcpDeleteCandidates) {
     if (!fs.existsSync(target)) continue;
@@ -581,7 +634,9 @@ function uninstallPlan(options) {
     throw new Error(`installation manifest belongs to ${existingManifest.host}/${existingManifest.profile}, not ${options.host}/${options.profile}`);
   }
   if (installationMode(existingManifest) !== mode) throw new Error(`installation manifest mode is ${installationMode(existingManifest)}, not ${mode}`);
-  return { options, mode, scope: existingManifest.scope, host: { id: existingManifest.host, displayName: existingManifest.host }, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], mcpActions: [], skipped: [], contextualSkills: [], contextualRoots: [], staleContextFiles: [] };
+  const host = readJson(HOST_DIR).hosts.find((entry) => entry.id === options.host);
+  const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
+  return { options, mode, scope: existingManifest.scope, host, adapter, profile: { name: existingManifest.profile }, installRoot, installationManifest, existingManifest, actions: [], mcpActions: [], projectInstructions: [], skipped: [], contextualSkills: [], contextualRoots: [], staleContextFiles: [] };
 }
 
 function execute(plan) {
@@ -605,9 +660,11 @@ function main() {
   }
   if (plan.options.uninstall) {
     for (const entry of plan.existingManifest.files || []) console.log(`${plan.options.dryRun ? '  would remove' : '  remove'} ${entry.path}`);
+    for (const entry of plan.existingManifest.projectInstructions || []) console.log(`${plan.options.dryRun ? '  would update' : '  update'} project instructions ${entry.path}: remove ${START_MARKER} ... ${END_MARKER}`);
   } else {
     for (const action of plan.actions) console.log(`${plan.options.dryRun ? '  would copy' : '  copy'} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
     for (const action of plan.mcpActions) console.log(`${plan.options.dryRun ? '  would merge MCP' : '  merge MCP'} ${path.relative(plan.installRoot, action.target)}: ${action.entries.map((entry) => entry.id).join(', ')}`);
+    for (const action of plan.projectInstructions) if (action.changed) console.log(`${plan.options.dryRun ? '  would update' : '  update'} project instructions ${action.path}: ${action.created ? 'create' : 'merge'} ${START_MARKER} ... ${END_MARKER}`);
     console.log(`${plan.options.dryRun ? '  would write' : '  write'} ${path.relative(plan.installRoot, plan.installationManifest)}`);
   }
   for (const skipped of plan.skipped) console.log(`  skip ${skipped}`);

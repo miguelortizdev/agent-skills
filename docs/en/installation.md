@@ -38,8 +38,28 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
   sync --host codex --profile decameron --dry-run
 ```
 
-Daily: use the Host's Commands normally. The current production catalog has
-zero Contextual Skills, so `sync` may succeed with no project writes.
+Daily: use the Host's Commands normally. `sync` also maintains the project's
+managed instruction block so relevant project Skills can be used alongside the
+base Skills required by Commands.
+
+## Project Instructions
+
+Overlay/sync declares its instruction mechanism in each Host adapter:
+
+| Host | Project instruction file |
+| --- | --- |
+| Claude | `CLAUDE.md` |
+| Codex | `AGENTS.md` |
+| Gemini | `GEMINI.md` |
+| Cursor | `.cursor/rules/ai-engineering-standard.mdc` |
+| OpenCode | `AGENTS.md` |
+| OpenChamber | `AGENTS.md` |
+
+The installer creates or updates only the managed block delimited by
+`ai-engineering-standard:start` and `ai-engineering-standard:end`. Existing user
+content is preserved, repeated `sync` runs are idempotent, and uninstall removes
+only that block. Shared files such as `AGENTS.md` remain until the last owning
+Host is uninstalled. Use `--dry-run` to preview the instruction file and block.
 
 ## Full Project
 

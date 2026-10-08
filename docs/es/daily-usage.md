@@ -22,9 +22,9 @@ nativos, el installer mantiene disponibles los Skills subyacentes como fallback
 documentado.
 
 Para un proyecto nuevo, ejecuta `sync --host <host> --profile decameron` después
-de instalar la Foundation global. Hoy ese Overlay no tiene Contextual Skills
-productivos para instalar; futuras entradas del Registry pueden agregarlos
-automáticamente.
+de instalar la Foundation global. El Overlay también mantiene el archivo de
+instrucciones del proyecto del Host para usar Skills relevantes del proyecto
+junto con los Skills base requeridos por los Commands.
 
 Consulta [Skills](skills.md) para elegir un Skill directamente y
 [Solución de problemas](troubleshooting.md) cuando un Command o instalación no

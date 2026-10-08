@@ -45,6 +45,7 @@
     "nativeSourceDirectory": ".gemini/commands"
   },
   "mcpStrategy": "native-merge",
+  "projectInstructions": {"path": "GEMINI.md"},
   "mcpConfig": {
     "format": "json",
     "projectPath": ".gemini/settings.json",
