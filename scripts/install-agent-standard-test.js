@@ -83,7 +83,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.claude', 'commands', 'plan.md'),
       extension: '.md',
       directory: path.join('.claude', 'commands'),
-      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md'],
+      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md', 'work.md'],
       includes: ['description:', 'Invoke the agent-skills:planning-and-task-breakdown skill.'],
     },
     {
@@ -91,7 +91,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.opencode', 'commands', 'plan.md'),
       extension: '.md',
       directory: path.join('.opencode', 'commands'),
-      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md'],
+      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md', 'work.md'],
       includes: ['description:', 'Invoke the planning-and-task-breakdown skill.'],
     },
     {
@@ -99,7 +99,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.opencode', 'commands', 'plan.md'),
       extension: '.md',
       directory: path.join('.opencode', 'commands'),
-      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md'],
+      filenames: ['spec.md', 'plan.md', 'build.md', 'test.md', 'constraints.md', 'review.md', 'webperf.md', 'code-simplify.md', 'ship.md', 'work.md'],
       includes: ['description:', 'Invoke the planning-and-task-breakdown skill.'],
     },
     {
@@ -107,7 +107,7 @@ test('installs commands using each host native representation', () => {
       path: path.join('.gemini', 'commands', 'planning.toml'),
       extension: '.toml',
       directory: path.join('.gemini', 'commands'),
-      filenames: ['spec.toml', 'planning.toml', 'build.toml', 'test.toml', 'constraints.toml', 'review.toml', 'webperf.toml', 'code-simplify.toml', 'ship.toml'],
+       filenames: ['spec.toml', 'planning.toml', 'build.toml', 'test.toml', 'constraints.toml', 'review.toml', 'webperf.toml', 'code-simplify.toml', 'ship.toml', 'work.toml'],
       includes: ['description = "Break work into small verifiable tasks', 'prompt = """'],
     },
   ];
@@ -947,11 +947,11 @@ test('materializes the complete Decameron foundation globally with explicit comm
     assert.equal(manifest.mode, 'global');
     assert.equal(manifest.profile, 'decameron');
     assert.equal(manifest.contextualSkills.length, 0);
-    assert.equal(fs.readdirSync(path.join(home, expected.root, 'skills')).length, 25, `${expected.host} base Skills`);
+    assert.equal(fs.readdirSync(path.join(home, expected.root, 'skills')).length, 26, `${expected.host} base Skills`);
     assert.equal(fs.readdirSync(path.join(home, expected.agents, 'agents')).length, 4, `${expected.host} Agents`);
     assert.equal(fs.readdirSync(path.join(home, expected.references, 'references')).length, 7, `${expected.host} References`);
     assert.equal(manifest.mcp.length, 2, `${expected.host} MCP`);
-    if (expected.commands === 'native') assert.equal(fs.readdirSync(path.join(home, expected.commandsPath, 'commands')).length, 9, `${expected.host} Commands`);
+    if (expected.commands === 'native') assert.equal(fs.readdirSync(path.join(home, expected.commandsPath, 'commands')).length, 10, `${expected.host} Commands`);
     if (expected.commands === 'fallback') assert.equal(fs.existsSync(path.join(home, expected.root, 'commands')), false, `${expected.host} Commands`);
     if (expected.commands === 'limited') assert.equal(fs.existsSync(path.join(home, expected.root, 'commands')), false, `${expected.host} Commands`);
     assert.equal(fs.existsSync(path.join(home, expected.mcp)), true, `${expected.host} MCP config`);

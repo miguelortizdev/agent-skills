@@ -48,9 +48,9 @@ afterEach(() => {
 
 test('canonical production registry has no contextual Skills', () => {
   const skills = canonicalCatalog.assets.filter((asset) => asset.type === 'skill');
-  assert.equal(skills.length, 25);
+  assert.equal(skills.length, 26);
   assert.equal(skills.filter((asset) => asset.contextual === true).length, 0);
-  assert.deepEqual(skills.filter((asset) => asset.source !== 'upstream').map((asset) => asset.id), []);
+  assert.deepEqual(skills.filter((asset) => asset.source !== 'upstream').map((asset) => asset.id), ['work-lifecycle']);
   for (const id of ['nextjs-vercel-engineering', 'laravel-engineering', 'spring-boot-engineering', 'openshift-engineering']) {
     assert.equal(skills.some((asset) => asset.id === id), false, id);
   }
