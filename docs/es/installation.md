@@ -13,9 +13,10 @@ Host. Escribe manifests de ownership y nunca crea una segunda fuente de verdad.
 | Project Full | Sí | Del proyecto | CI/CD, repositorios portables o aislados |
 | Project Overlay / `sync` | No | Del proyecto | Un proyecto que ya usa una Foundation global |
 
-Los Profiles son `default` y `decameron`. El Profile `decameron` incluye 25
-Skills, 9 Commands, 4 Agents, 7 References y los servidores MCP `context7` y
-`kubernetes`.
+Los Profiles son `default` y `decameron`. El Profile `default` incluye 25 Skills
+y 9 Commands. `decameron` agrega `work-lifecycle` y `/work`, para un total de
+26 Skills y 10 Commands, además de 4 Agents, 7 References y los servidores MCP
+`context7` y `kubernetes`.
 
 Los ejemplos operativos marcados con `<!-- doc-test: executable -->` se validan
 desde un proyecto y HOME temporales aislados. Los demás bloques son ilustrativos.
@@ -41,6 +42,16 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 Uso diario: utiliza normalmente los Commands del Host. `sync` también mantiene
 el bloque de instrucciones administrado del proyecto para usar los Skills del
 proyecto relevantes junto con los Skills base requeridos por los Commands.
+
+## Instalación Del Ciclo De Trabajo
+
+En Project Full, `/work` resuelve su script Node desde
+`<directorio-de-skills-del-host>/work-lifecycle/scripts/work.js`. Los Commands
+de una Foundation global resuelven el mismo script desde el directorio global
+del Skill; los proyectos Overlay usan la Foundation global. Así `/work start`,
+`/work switch` y `/work close` no dependen de la ubicación del repositorio fuente.
+Codex no tiene un directorio nativo de Commands en este Profile; usa
+directamente el Skill `work-lifecycle` instalado y no crees `.codex/commands`.
 
 ## Instrucciones Del Proyecto
 

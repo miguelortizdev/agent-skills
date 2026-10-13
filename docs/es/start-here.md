@@ -11,9 +11,9 @@ genérico.
 
 Catálogo productivo actual:
 
-- 25 Skills, todos base
+- 26 Skills: 25 Skills base más `work-lifecycle` en decameron
 - 0 Contextual Skills productivos
-- 9 Commands, 4 Agents, 7 References y 6 Hosts
+- 10 Commands en decameron, 4 Agents, 7 References y 6 Hosts
 
 ## Elige Tu Ruta
 

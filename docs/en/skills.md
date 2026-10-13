@@ -8,8 +8,8 @@
 - 25 Base Skills
 - 0 production Contextual Skills
 
-Both `default` and `decameron` Profiles select the same 25-Skill Foundation.
-`decameron` additionally selects corporate MCP.
+The `default` Profile selects the 25-Skill Foundation and 9 Commands.
+`decameron` adds `work-lifecycle` and `/work`, plus corporate MCP.
 
 ## Base And Contextual Skills
 

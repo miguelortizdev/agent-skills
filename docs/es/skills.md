@@ -8,8 +8,8 @@
 - 25 Skills base
 - 0 Contextual Skills productivos
 
-Los Profiles `default` y `decameron` seleccionan la misma Foundation de 25
-Skills. `decameron` además selecciona MCP corporativos.
+El Profile `default` selecciona la Foundation de 25 Skills y 9 Commands.
+`decameron` agrega `work-lifecycle` y `/work`, además de MCP corporativos.
 
 ## Skills Base Y Contextuales
 

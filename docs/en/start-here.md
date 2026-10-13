@@ -10,9 +10,9 @@ ownership-safe installation, and a generic Context Rules Engine.
 
 Current production catalog:
 
-- 25 Skills, all base Skills
+- 26 Skills: 25 base Skills plus `work-lifecycle` in decameron
 - 0 production Contextual Skills
-- 9 Commands, 4 Agents, 7 References, and 6 Hosts
+- 10 Commands in decameron, 4 Agents, 7 References, and 6 Hosts
 
 ## Choose Your Path
 
