@@ -129,7 +129,7 @@ function renderCodexAgent(source) {
   return `name = ${JSON.stringify(agent.name)}\ndescription = ${JSON.stringify(agent.description)}\ndeveloper_instructions = ${JSON.stringify(agent.instructions)}\n`;
 }
 
-function commandAction(source, id, destination, representation) {
+function commandAction(source, id, destination, representation, workScript) {
   const filename = representation.filenameMap && representation.filenameMap[id] || id;
   const nativeSource = representation.nativeSourceDirectory && path.join(
     ROOT,
@@ -137,21 +137,24 @@ function commandAction(source, id, destination, representation) {
     `${filename}${representation.extension}`,
   );
   if (nativeSource && fs.existsSync(nativeSource)) {
-    return { source: nativeSource, target: safePath(destination, `${filename}${representation.extension}`) };
+    const content = fs.readFileSync(nativeSource, 'utf8');
+    return content.includes('{{WORK_LIFECYCLE_SCRIPT}}')
+      ? { source: nativeSource, content: content.replaceAll('{{WORK_LIFECYCLE_SCRIPT}}', workScript), target: safePath(destination, `${filename}${representation.extension}`) }
+      : { source: nativeSource, target: safePath(destination, `${filename}${representation.extension}`) };
   }
   const command = canonicalCommand(source);
   if (representation.format === 'markdown') {
     return {
       source,
-      content: renderMarkdownCommand(command),
+      content: renderMarkdownCommand(command).replaceAll('{{WORK_LIFECYCLE_SCRIPT}}', workScript),
       target: safePath(destination, `${filename}${representation.extension}`),
     };
   }
   if (representation.format === 'toml') {
-    return {
-      source,
-      target: safePath(destination, `${filename}${representation.extension}`),
-    };
+    const content = fs.readFileSync(source, 'utf8');
+    return content.includes('{{WORK_LIFECYCLE_SCRIPT}}')
+      ? { source, content: content.replaceAll('{{WORK_LIFECYCLE_SCRIPT}}', workScript), target: safePath(destination, `${filename}${representation.extension}`) }
+      : { source, target: safePath(destination, `${filename}${representation.extension}`) };
   }
   throw new Error(`unsupported command representation: ${representation.format}`);
 }
@@ -171,6 +174,12 @@ function installDestinations(adapter, scope) {
   const destinations = adapter.installDestinations;
   if (!destinations) return {};
   return destinations[scope] || destinations;
+}
+
+function workScriptPath(skillRoot, scope) {
+  const relative = path.join(skillRoot, 'work-lifecycle', 'scripts', 'work.js').split(path.sep).join('/');
+  if (scope !== 'global') return relative;
+  return process.platform === 'win32' ? `"%USERPROFILE%\\${relative.replaceAll('/', '\\')}"` : `"$HOME/${relative}"`;
 }
 
 function manifestPath(installRoot, hostId) {
@@ -308,7 +317,9 @@ function buildPlan(options) {
       const source = path.join(ROOT, asset.path);
       const targetBase = safePath(installRoot, destination);
       if (type === 'command' && adapter.commandRepresentation) {
-        actions.push(commandAction(source, id, targetBase, adapter.commandRepresentation));
+        const skillRoot = installDestinations(adapter, scope).skills;
+        const installedWorkScript = id === 'work' ? workScriptPath(skillRoot, scope) : '';
+        actions.push(commandAction(source, id, targetBase, adapter.commandRepresentation, installedWorkScript));
         continue;
       }
       if (type === 'agent' && adapter.agentRepresentation) {

@@ -26,9 +26,10 @@
     "source-driven-development",
     "spec-driven-development",
     "test-driven-development",
-    "using-agent-skills"
+    "using-agent-skills",
+    "work-lifecycle"
   ],
-  "commands": ["spec", "plan", "build", "test", "constraints", "review", "webperf", "code-simplify", "ship"],
+  "commands": ["spec", "plan", "build", "test", "constraints", "review", "webperf", "code-simplify", "ship", "work"],
   "agents": ["code-reviewer", "security-auditor", "test-engineer", "web-performance-auditor"],
   "references": ["accessibility-checklist", "definition-of-done", "observability-checklist", "orchestration-patterns", "performance-checklist", "security-checklist", "testing-patterns"],
   "evals": ["routing-evals"],

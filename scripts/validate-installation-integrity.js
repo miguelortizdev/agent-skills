@@ -127,8 +127,17 @@ function main() {
         missing.push(path.relative(installRoot, commandFile));
         continue;
       }
+      const content = fs.readFileSync(commandFile, 'utf8');
       if (commandRepresentation.extension === '.md') {
-        missing.push(...checkMarkdownTargets(commandFile, fs.readFileSync(commandFile, 'utf8'), installRoot, skillDestination, referenceDestination, true));
+        missing.push(...checkMarkdownTargets(commandFile, content, installRoot, skillDestination, referenceDestination, true));
+      }
+      if (id === 'work') {
+        const installedScript = path.join(installRoot, skillDestination, 'work-lifecycle', 'scripts', 'work.js');
+        const scriptSuffix = path.join(skillDestination, 'work-lifecycle', 'scripts', 'work.js');
+        if (!fs.existsSync(installedScript) || fs.lstatSync(installedScript).isSymbolicLink()) missing.push(path.relative(installRoot, installedScript));
+        if (!content.includes(scriptSuffix) && !content.includes(scriptSuffix.split(path.sep).join('/'))) {
+          missing.push(`${path.relative(installRoot, commandFile)} -> installed Work Lifecycle script path`);
+        }
       }
     }
   }
