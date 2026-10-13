@@ -7,6 +7,13 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const TYPE_FIELDS = { skill: 'skills', command: 'commands', agent: 'agents', reference: 'references' };
+const {
+  generateCommandSkill,
+  generatedSkillId,
+  parseCanonicalCommand,
+  resolveCommandDependencies,
+  validateFallback,
+} = require('./lib/command-skill-generator');
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 
@@ -57,6 +64,12 @@ function resolveProfile(profile, assets) {
 
 function markdownLinks(content) {
   return [...content.matchAll(/!?\[[^\]]*\]\(([^)]+)\)/g)].map((match) => match[1].trim());
+}
+
+function workScriptPath(skillRoot, scope) {
+  const relative = path.join(skillRoot, 'work-lifecycle', 'scripts', 'work.js').split(path.sep).join('/');
+  if (scope !== 'global') return relative;
+  return process.platform === 'win32' ? `"%USERPROFILE%\\${relative.replaceAll('/', '\\')}"` : `"$HOME/${relative}"`;
 }
 
 function checkMarkdownTargets(file, content, installRoot, skillDestination, referenceDestination, commandContext = false) {
@@ -118,6 +131,26 @@ function main() {
     if (!fs.existsSync(path.join(installRoot, referenceDestination, `${id}.md`))) missing.push(`${referenceDestination}/${id}.md`);
   }
   const commandRepresentation = adapter.commandRepresentation;
+  if (!commandRepresentation && adapter.commandFallback) {
+    if (!validateFallback(adapter.commandFallback)) throw new Error(`unsupported command fallback for ${options.host}`);
+    for (const id of profile.commands) {
+      const asset = assets.get(id);
+      const source = path.join(ROOT, asset.path);
+      const command = parseCanonicalCommand(source, id, asset.path);
+      const dependencies = resolveCommandDependencies(id, assets);
+      const skillId = generatedSkillId(id, adapter.commandFallback);
+      const workScript = id === 'work' ? workScriptPath(skillDestination, options.scope === 'global' ? 'global' : 'project') : null;
+      const generated = workScript ? { ...command, prompt: command.prompt.replaceAll('{{WORK_LIFECYCLE_SCRIPT}}', workScript) } : command;
+      const expected = generateCommandSkill({
+        command: generated,
+        dependencies,
+        syntax: adapter.commandFallback.syntax.replace('<command-id>', skillId),
+      });
+      const target = path.join(installRoot, skillDestination, skillId, 'SKILL.md');
+      if (!fs.existsSync(target)) missing.push(path.relative(installRoot, target));
+      else if (fs.readFileSync(target, 'utf8') !== expected) missing.push(`${path.relative(installRoot, target)} (generated content mismatch)`);
+    }
+  }
   if (commandRepresentation && destinations.commands) {
     for (const id of profile.commands) {
       const filename = commandRepresentation.filenameMap?.[id] || id;

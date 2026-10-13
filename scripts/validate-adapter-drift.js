@@ -9,6 +9,7 @@ const ROOT = path.resolve(__dirname, '..');
 const HOSTS_FILE = path.join(ROOT, 'registry', 'hosts.json');
 const CATALOG_FILE = path.join(ROOT, 'registry', 'catalog.json');
 const REQUIRED_MAPPING_TYPES = ['skills', 'commands', 'agents', 'references', 'evals', 'hooks', 'mcp'];
+const GENERATED_COMMAND_FALLBACK = { mode: 'generated-skills', nameTemplate: '<command-id>', syntax: '$<command-id>' };
 
 function readJson(file) {
   try {
@@ -73,6 +74,15 @@ function main() {
     }
     if (adapter.commandRepresentation && !hostCapabilities.has('commands')) {
       throw new Error(`adapter ${host.id} declares command representation without registry commands capability`);
+    }
+    if (adapter.commandFallback) {
+      for (const [key, value] of Object.entries(GENERATED_COMMAND_FALLBACK)) {
+        if (adapter.commandFallback[key] !== value) throw new Error(`adapter ${host.id} has invalid commandFallback.${key}`);
+      }
+      if (!destinations.project.skills || !destinations.global.skills) {
+        throw new Error(`adapter ${host.id} commandFallback requires project and global Skill destinations`);
+      }
+      if (adapter.globalCommandSupport === 'native') throw new Error(`adapter ${host.id} cannot combine native Commands with generated command fallback`);
     }
     for (const type of ['skills', 'commands', 'agents']) {
       const destination = destinations.project[type];

@@ -22,6 +22,11 @@
     "hooks": "documented-fallback",
     "mcp": "documented-fallback"
   },
+  "commandFallback": {
+    "mode": "generated-skills",
+    "nameTemplate": "<command-id>",
+    "syntax": "$<command-id>"
+  },
   "nativeCapabilities": ["skills", "agents"],
   "installDestinations": {
     "project": {
