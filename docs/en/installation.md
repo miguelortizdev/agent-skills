@@ -50,8 +50,28 @@ For Project Full, `/work` resolves its Node script from the installed
 commands resolve the same script from the installed global Skill directory;
 Overlay projects use the global Foundation. This keeps `/work start`,
 `/work switch`, and `/work close` independent of the source repository location.
-Codex has no native Command directory in this profile; use the installed
-`work-lifecycle` Skill directly rather than creating `.codex/commands`.
+Codex has no native Command directory in this profile. The adapter keeps
+`globalCommandSupport: fallback` and generates one Skill per selected Command
+under `.agents/skills/<command-id>/SKILL.md`; it does not create
+`.codex/commands`. The generated Skills preserve the canonical Command prompt,
+including modes such as `$build auto`, and list dependencies by their actual
+type. `/work` resolves the installed `work-lifecycle` script rather than the
+source repository path.
+
+For Codex, invoke the generated adapters with `$`:
+
+```text
+$spec
+$plan
+$build auto
+$work start feature dingus --from main
+```
+
+Global and Project Full installations generate the adapters locally. Overlay
+projects reuse the global Foundation and do not duplicate them. Dry-run shows
+the generated targets; updating an unchanged managed adapter refreshes it, while
+manual modifications cause a safe conflict. Uninstall removes only owned,
+unchanged generated Skills.
 
 ## Project Instructions
 

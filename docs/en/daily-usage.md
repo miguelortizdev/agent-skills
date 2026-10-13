@@ -18,9 +18,22 @@ native interface:
 | `/ship` | Prepare a verified launch |
 | `/work` | Start, switch, or close isolated work items |
 
-Use the command surface supported by your Host. On Hosts without native
-Commands, the installer keeps the underlying Skills available as the documented
-fallback.
+Use the command surface supported by your Host. Codex has no native Command
+directory, so its adapter generates Skills with the same Command IDs and you
+invoke them with `$`:
+
+```text
+$spec
+$plan
+$build auto
+$test
+$work start feature dingus --from main
+```
+
+`auto` is an argument interpreted by the generated `$build` Skill, not a native
+Codex subcommand. The generated Skill contains the complete canonical prompt;
+Agents and References remain typed dependencies rather than becoming `$`
+invocations. Other Hosts continue using their native Command surfaces.
 
 For a new project, run `sync --host <host> --profile decameron` after the global
 Foundation exists. The Overlay also maintains the Host's project instruction

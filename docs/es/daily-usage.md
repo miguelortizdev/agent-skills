@@ -18,9 +18,23 @@ la interfaz nativa del Host:
 | `/ship` | Preparar un lanzamiento verificado |
 | `/work` | Iniciar, cambiar o cerrar trabajos aislados |
 
-Usa la superficie de Commands que soporte tu Host. En Hosts sin Commands
-nativos, el installer mantiene disponibles los Skills subyacentes como fallback
-documentado.
+Usa la superficie de Commands que soporte tu Host. Codex no tiene un directorio
+nativo de Commands, así que su adapter genera Skills con los mismos IDs y se
+invocan con `$`:
+
+```text
+$spec
+$plan
+$build auto
+$test
+$work start feature dingus --from main
+```
+
+`auto` es un argumento interpretado por el Skill generado `$build`, no un
+subcomando nativo de Codex. El Skill generado contiene el prompt canónico
+completo; Agents y References conservan su tipo y no se convierten en
+invocaciones mediante `$`. Los demás Hosts siguen usando sus superficies nativas
+de Commands.
 
 Para un proyecto nuevo, ejecuta `sync --host <host> --profile decameron` después
 de instalar la Foundation global. El Overlay también mantiene el archivo de
