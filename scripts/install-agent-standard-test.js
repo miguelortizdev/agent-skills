@@ -403,6 +403,36 @@ test('merges Codex MCP around unrelated TOML and cleans installer-owned config',
   assert.deepEqual(fs.readFileSync(malformedConfig), original);
 });
 
+test('accepts valid multiline TOML in an existing Codex config', () => {
+  const root = makeSandbox();
+  const configPath = path.join(root, '.codex', 'config.toml');
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, '[features]\ninstructions = """\nline one\nline two\n"""\n');
+  const install = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const content = fs.readFileSync(configPath, 'utf8');
+  assert.match(content, /line one\nline two/);
+  assert.match(content, /\[mcp_servers\.context7\]/);
+});
+
+test('refuses to follow a symlinked MCP config during uninstall', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const configPath = path.join(root, '.codex', 'config.toml');
+  const outside = path.join(root, 'outside.toml');
+  fs.writeFileSync(outside, '[unrelated]\nvalue = true\n');
+  fs.unlinkSync(configPath);
+  fs.symlinkSync(outside, configPath);
+
+  const uninstall = run(root, '--host', 'codex', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 1);
+  assert.match(uninstall.stderr, /refusing to uninstall modified files/);
+  assert.equal(fs.readFileSync(outside, 'utf8'), '[unrelated]\nvalue = true\n');
+  assert.equal(fs.lstatSync(configPath).isSymbolicLink(), true);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard', 'installations', 'codex.json')), true);
+});
+
 test('writes MCP configuration in each host native representation', () => {
   const cases = [
     ['claude', '.mcp.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
@@ -675,6 +705,26 @@ test('removes stale generated Codex Skills when Commands are removed from a Prof
   const secondGlobal = runFrom(sourceRoot, globalRoot, '--host', 'codex', '--profile', 'decameron', '--global', { env: { HOME: home } });
   assert.equal(secondGlobal.status, 0, secondGlobal.stdout + secondGlobal.stderr);
   assert.equal(fs.existsSync(path.join(home, '.agents', 'skills', 'build')), false);
+});
+
+test('removes stale managed Skills and native Commands when a Profile is reduced', () => {
+  const sourceRoot = copyRepository();
+  const root = makeSandbox();
+  const first = runFrom(sourceRoot, root, '--host', 'claude', '--profile', 'decameron', '--project');
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'skills', 'api-and-interface-design')), true);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'commands', 'plan.md')), true);
+
+  const profileFile = path.join(sourceRoot, 'profiles', 'decameron.json');
+  const profile = JSON.parse(fs.readFileSync(profileFile, 'utf8'));
+  profile.skills = profile.skills.filter((id) => id !== 'api-and-interface-design');
+  profile.commands = profile.commands.filter((id) => id !== 'plan');
+  fs.writeFileSync(profileFile, `${JSON.stringify(profile)}\n`);
+
+  const second = runFrom(sourceRoot, root, '--host', 'claude', '--profile', 'decameron', '--project');
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'skills', 'api-and-interface-design')), false);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'commands', 'plan.md')), false);
 });
 
 test('keeps generated commands idempotent and refuses modified commands', () => {

@@ -230,10 +230,17 @@ function validateGlobalFoundation(hostId, profileName) {
   if (!Array.isArray(hostManifest.manifest.files) || hostManifest.manifest.files.length === 0) {
     throw new Error(`global foundation was not found for host ${hostId}`);
   }
-  const missing = hostManifest.manifest.files
-    .filter((file) => !fs.existsSync(safePath(globalRoot, file.path)))
-    .map((file) => file.path);
-  if (missing.length) throw new Error(`global foundation is incomplete for host ${hostId}; missing managed files: ${missing.join(', ')}`);
+  const invalid = [];
+  for (const file of hostManifest.manifest.files) {
+    const target = safePath(globalRoot, file.path);
+    if (!fs.existsSync(target)) {
+      invalid.push(file.path);
+      continue;
+    }
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink() || !stat.isFile() || (file.sha256 && hashFile(target) !== file.sha256)) invalid.push(file.path);
+  }
+  if (invalid.length) throw new Error(`global foundation is incomplete or modified for host ${hostId}; invalid managed files: ${invalid.join(', ')}`);
   return hostManifest.manifest;
 }
 
@@ -397,6 +404,14 @@ function buildPlan(options) {
     mcpActions.push({ target, relativePath, format: representation.format, rootKey: representation.rootKey, nestedRootKey: representation.nestedRootKey, configCreated, content: merged.content, changed: merged.changed, entries: merged.entries });
   }
   const uniqueActions = [...new Map(actions.map((action) => [action.target, action])).values()];
+  const currentFilePaths = new Set(uniqueActions.map((action) => path.relative(installRoot, action.target)));
+  const staleContextPaths = new Set(staleContextFiles.map((entry) => entry.path));
+  const staleManagedFiles = (existingManifest?.files || []).filter((entry) =>
+    entry.created
+    && !currentFilePaths.has(entry.path)
+    && !staleContextPaths.has(entry.path)
+    && !entry.generatedCommand,
+  );
   const contextualRoots = contextualSkills.map((skill) => ({
     id: skill.id,
     evidence: skill.evidence,
@@ -407,7 +422,7 @@ function buildPlan(options) {
     .filter((entry) => entry.generatedCommand)
     .map((entry) => ({ path: entry.path }));
   const staleGeneratedFiles = previousGenerated.filter((entry) => !currentGeneratedPaths.has(entry.path));
-  return { options, mode, scope, host, adapter, profile: selectedProfile, installRoot, actions: uniqueActions, generatedCommandSkills, mcpActions, projectInstructions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, staleGeneratedFiles, globalFoundation };
+  return { options, mode, scope, host, adapter, profile: selectedProfile, installRoot, actions: uniqueActions, generatedCommandSkills, mcpActions, projectInstructions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, staleManagedFiles, staleGeneratedFiles, globalFoundation };
 }
 
 function executeInstall(plan) {
@@ -423,6 +438,8 @@ function executeInstall(plan) {
   const staleTransfers = [];
   const staleGeneratedRemovable = [];
   const staleGeneratedTransfers = [];
+  const staleManagedRemovable = [];
+  const staleManagedTransfers = [];
   for (const entry of plan.staleContextFiles) {
     const target = safePath(plan.installRoot, entry.path);
     const previous = previousFiles.get(entry.path) || entry;
@@ -446,6 +463,17 @@ function executeInstall(plan) {
     const owners = otherOwners.get(entry.path) || [];
     if (owners.length) staleGeneratedTransfers.push({ target, owners });
     else staleGeneratedRemovable.push(target);
+  }
+  for (const entry of plan.staleManagedFiles || []) {
+    const target = safePath(plan.installRoot, entry.path);
+    if (!fs.existsSync(target)) continue;
+    if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile() || hashFile(target) !== entry.sha256) {
+      conflicts.push(target);
+      continue;
+    }
+    const owners = otherOwners.get(entry.path) || [];
+    if (owners.length) staleManagedTransfers.push({ target, owners });
+    else staleManagedRemovable.push(target);
   }
   for (const action of plan.actions) {
     assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
@@ -514,11 +542,22 @@ function executeInstall(plan) {
     successorFile.created = true;
     writeManifest(successor.owner.file, successor.owner.manifest);
   }
+  for (const transfer of staleManagedTransfers) {
+    const successor = transfer.owners[0];
+    const relative = path.relative(plan.installRoot, transfer.target);
+    const successorFile = successor.owner.manifest.files.find((file) => file.path === relative);
+    successorFile.created = true;
+    writeManifest(successor.owner.file, successor.owner.manifest);
+  }
   for (const target of staleRemovable) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
   for (const target of staleGeneratedRemovable) {
+    fs.unlinkSync(target);
+    removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
+  for (const target of staleManagedRemovable) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
@@ -639,6 +678,11 @@ function executeUninstall(plan) {
     mcpRemovalGroups.get(target).push(entry);
   }
   for (const [target, entries] of mcpRemovalGroups) {
+    const stat = fs.existsSync(target) && fs.lstatSync(target);
+    if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+      modified.push(target);
+      continue;
+    }
     const content = fs.readFileSync(target, 'utf8');
     const first = entries[0];
     const result = first.format === 'toml'
@@ -665,9 +709,15 @@ function executeUninstall(plan) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
-  for (const [target, content] of mcpChanges) fs.writeFileSync(target, content);
+  for (const [target, content] of mcpChanges) {
+    const stat = fs.existsSync(target) && fs.lstatSync(target);
+    if (!stat || stat.isSymbolicLink() || !stat.isFile()) throw new Error(`refusing to uninstall modified files:\n${target}`);
+    fs.writeFileSync(target, content);
+  }
   for (const target of mcpDeleteCandidates) {
     if (!fs.existsSync(target)) continue;
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`refusing to uninstall modified files:\n${target}`);
     if (mcpFormats.get(target) === 'toml' && fs.readFileSync(target, 'utf8').trim() === '') {
       fs.unlinkSync(target);
       removeEmptyParents(path.dirname(target), plan.installRoot);

@@ -117,6 +117,8 @@ function main() {
       const installed = path.join(target, relative);
       if (!fs.existsSync(installed)) {
         missing.push(`${skillDestination}/${id}/${relative}`);
+      } else if (fs.lstatSync(installed).isSymbolicLink() || !fs.statSync(installed).isFile()) {
+        missing.push(`${skillDestination}/${id}/${relative} (symlink or non-file)`);
       } else if (!fs.readFileSync(installed).equals(fs.readFileSync(path.join(source, relative)))) {
         missing.push(`${skillDestination}/${id}/${relative} (content mismatch)`);
       }
@@ -148,6 +150,7 @@ function main() {
       });
       const target = path.join(installRoot, skillDestination, skillId, 'SKILL.md');
       if (!fs.existsSync(target)) missing.push(path.relative(installRoot, target));
+      else if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile()) missing.push(`${path.relative(installRoot, target)} (symlink or non-file)`);
       else if (fs.readFileSync(target, 'utf8') !== expected) missing.push(`${path.relative(installRoot, target)} (generated content mismatch)`);
     }
   }
