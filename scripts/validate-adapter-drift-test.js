@@ -65,6 +65,26 @@ test('requires explicit and coherent global Command support metadata', () => {
   assert.match(result.stderr, /native global Commands without a global destination/);
 });
 
+test('validates generated Command Skill fallback contracts', () => {
+  const root = makeSandbox();
+  const file = path.join(root, 'adapters', 'codex', 'adapter.json');
+  const adapter = JSON.parse(fs.readFileSync(file, 'utf8'));
+  adapter.commandFallback = { mode: 'wrong', nameTemplate: '<command-id>', syntax: '$<command-id>' };
+  fs.writeFileSync(file, JSON.stringify(adapter));
+  let result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /commandFallback\.mode/);
+
+  const clean = makeSandbox();
+  const cleanFile = path.join(clean, 'adapters', 'codex', 'adapter.json');
+  const cleanAdapter = JSON.parse(fs.readFileSync(cleanFile, 'utf8'));
+  cleanAdapter.commandFallback.nameTemplate = 'cmd-<command-id>';
+  fs.writeFileSync(cleanFile, JSON.stringify(cleanAdapter));
+  result = run(clean);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /commandFallback\.nameTemplate/);
+});
+
 test('rejects a missing adapter', () => {
   const root = makeSandbox();
   fs.rmSync(path.join(root, 'adapters', 'cursor'), { recursive: true, force: true });

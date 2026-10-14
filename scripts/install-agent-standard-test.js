@@ -31,6 +31,26 @@ function run(root, ...args) {
   });
 }
 
+function copyRepository() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-skills-generator-repo-'));
+  fs.cpSync(ROOT, root, {
+    recursive: true,
+    filter: (source) => !/(^|[\\/])\.git(?:[\\/]|$)/.test(source) && !/(^|[\\/])\.opencode(?:[\\/]|$)/.test(source),
+  });
+  sandboxes.push(root);
+  return root;
+}
+
+function runFrom(sourceRoot, root, ...args) {
+  const env = args.at(-1) && args.at(-1).env;
+  if (env) args.pop();
+  return spawnSync(process.execPath, [path.join(sourceRoot, 'scripts', 'install-agent-standard.js'), ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    env: env ? { ...process.env, ...env } : process.env,
+  });
+}
+
 function readInstalled(root, relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
@@ -74,6 +94,15 @@ test('dry-run reports actions without writing files', () => {
   assert.doesNotMatch(result.stdout, /secret|token-value|abc123/i);
   assert.match(result.stdout, /No files changed/);
   assert.equal(fs.existsSync(path.join(root, '.cursor', 'rules', 'ai-engineering-standard.mdc')), false);
+});
+
+test('Codex dry-run reports generated Command Skills without writing them', () => {
+  const root = makeSandbox();
+  const result = run(root, '--host', 'codex', '--profile', 'decameron', '--project', '--dry-run');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /would generate Command Skill/);
+  assert.match(result.stdout, /\.agents[\\/]skills[\\/]build[\\/]SKILL\.md/);
+  assert.equal(fs.existsSync(path.join(root, '.agents')), false);
 });
 
 test('installs commands using each host native representation', () => {
@@ -374,6 +403,36 @@ test('merges Codex MCP around unrelated TOML and cleans installer-owned config',
   assert.deepEqual(fs.readFileSync(malformedConfig), original);
 });
 
+test('accepts valid multiline TOML in an existing Codex config', () => {
+  const root = makeSandbox();
+  const configPath = path.join(root, '.codex', 'config.toml');
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, '[features]\ninstructions = """\nline one\nline two\n"""\n');
+  const install = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const content = fs.readFileSync(configPath, 'utf8');
+  assert.match(content, /line one\nline two/);
+  assert.match(content, /\[mcp_servers\.context7\]/);
+});
+
+test('refuses to follow a symlinked MCP config during uninstall', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const configPath = path.join(root, '.codex', 'config.toml');
+  const outside = path.join(root, 'outside.toml');
+  fs.writeFileSync(outside, '[unrelated]\nvalue = true\n');
+  fs.unlinkSync(configPath);
+  fs.symlinkSync(outside, configPath);
+
+  const uninstall = run(root, '--host', 'codex', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 1);
+  assert.match(uninstall.stderr, /refusing to uninstall modified files/);
+  assert.equal(fs.readFileSync(outside, 'utf8'), '[unrelated]\nvalue = true\n');
+  assert.equal(fs.lstatSync(configPath).isSymbolicLink(), true);
+  assert.equal(fs.existsSync(path.join(root, '.agent-standard', 'installations', 'codex.json')), true);
+});
+
 test('writes MCP configuration in each host native representation', () => {
   const cases = [
     ['claude', '.mcp.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
@@ -564,14 +623,141 @@ test('default profile installs all selected assets or documented fallbacks per h
   }
 });
 
-test('does not invent command files for hosts without native command support', () => {
-  for (const host of ['codex']) {
-    const root = makeSandbox();
-    const result = run(root, '--host', host, '--profile', 'decameron', '--project');
-    assert.equal(result.status, 0, `${host}: ${result.stdout}${result.stderr}`);
-    assert.equal(fs.existsSync(path.join(root, host === 'codex' ? '.agents' : '.cursor', 'commands')), false);
-    assert.match(result.stdout, /host has no native destination/);
+test('generates Codex Command Skills without creating a native command directory', () => {
+  const root = makeSandbox();
+  const result = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'commands')), false);
+  for (const id of ['spec', 'plan', 'build', 'test', 'constraints', 'review', 'webperf', 'code-simplify', 'ship', 'work']) {
+    assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', id, 'SKILL.md')), true, id);
   }
+  assert.match(readInstalled(root, '.agents/skills/build/SKILL.md'), /\/build auto/);
+  assert.match(readInstalled(root, '.agents/skills/work/SKILL.md'), /\.agents[\\/]skills[\\/]work-lifecycle[\\/]scripts[\\/]work\.js/);
+  assert.match(result.stdout, /generate Command Skill/);
+});
+
+test('generates a newly registered Command through the installer without hardcoded IDs', () => {
+  const sourceRoot = copyRepository();
+  const root = makeSandbox();
+  const commandFile = path.join(sourceRoot, 'commands', 'later.toml');
+  fs.writeFileSync(commandFile, 'description = "Run a later workflow"\nprompt = """\nUse the later workflow exactly.\n"""\n');
+  const catalogFile = path.join(sourceRoot, 'registry', 'catalog.json');
+  const catalog = JSON.parse(fs.readFileSync(catalogFile, 'utf8'));
+  catalog.assets.push({ id: 'later', type: 'command', path: 'commands/later.toml', source: 'test', enabled: true });
+  fs.writeFileSync(catalogFile, `${JSON.stringify(catalog)}\n`);
+  const profileFile = path.join(sourceRoot, 'profiles', 'decameron.json');
+  const profile = JSON.parse(fs.readFileSync(profileFile, 'utf8'));
+  profile.commands.push('later');
+  fs.writeFileSync(profileFile, `${JSON.stringify(profile)}\n`);
+  const result = runFrom(sourceRoot, root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'later', 'SKILL.md')), true);
+  assert.match(readInstalled(root, '.agents/skills/later/SKILL.md'), /Use the later workflow exactly/);
+});
+
+test('refreshes Codex generated Skills from updated canonical Commands', () => {
+  const sourceRoot = copyRepository();
+  const root = makeSandbox();
+  const install = runFrom(sourceRoot, root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+
+  const commandFile = path.join(sourceRoot, 'commands', 'build.toml');
+  const command = fs.readFileSync(commandFile, 'utf8');
+  fs.writeFileSync(commandFile, command.replace(/\n"""\s*$/, '\nRefresh marker from canonical Command.\n"""\n'));
+
+  const dryRun = runFrom(sourceRoot, root, 'refresh', '--host', 'codex', '--project', '--dry-run');
+  assert.equal(dryRun.status, 0, dryRun.stdout + dryRun.stderr);
+  assert.match(dryRun.stdout, /Refresh/);
+  assert.match(dryRun.stdout, /generate Command Skill/);
+
+  const refresh = runFrom(sourceRoot, root, 'refresh', '--host', 'codex', '--project');
+  assert.equal(refresh.status, 0, refresh.stdout + refresh.stderr);
+  assert.match(readInstalled(root, '.agents/skills/build/SKILL.md'), /Refresh marker from canonical Command/);
+});
+
+test('refresh infers the existing Codex project installation and preserves conflicts', () => {
+  const sourceRoot = copyRepository();
+  const root = makeSandbox();
+  const home = makeSandbox();
+  const install = runFrom(sourceRoot, root, '--host', 'codex', '--profile', 'decameron', '--project', { env: { HOME: home } });
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  fs.appendFileSync(path.join(root, '.agents', 'skills', 'build', 'SKILL.md'), '\nlocal modification\n');
+
+  const refresh = runFrom(sourceRoot, root, 'refresh', '--host', 'codex', { env: { HOME: home } });
+  assert.equal(refresh.status, 1);
+  assert.match(refresh.stderr, /refusing to overwrite existing files/);
+});
+
+test('refuses to overwrite a manually modified generated Codex Skill', () => {
+  const root = makeSandbox();
+  const first = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  const target = path.join(root, '.agents', 'skills', 'build', 'SKILL.md');
+  fs.appendFileSync(target, '\nlocal modification\n');
+  const second = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(second.status, 1);
+  assert.match(second.stderr, /refusing to overwrite existing files/);
+});
+
+test('uninstalls generated Codex Skills without leaving native command files', () => {
+  const root = makeSandbox();
+  const install = run(root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  const uninstall = run(root, '--host', 'codex', '--profile', 'decameron', '--project', '--uninstall');
+  assert.equal(uninstall.status, 0, uninstall.stdout + uninstall.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'build')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills', 'work')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'commands')), false);
+});
+
+test('removes stale generated Codex Skills when Commands are removed from a Profile', () => {
+  const sourceRoot = copyRepository();
+  const projectRoot = makeSandbox();
+  const firstProject = runFrom(sourceRoot, projectRoot, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(firstProject.status, 0, firstProject.stdout + firstProject.stderr);
+  assert.equal(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'build', 'SKILL.md')), true);
+
+  const globalRoot = makeSandbox();
+  const home = makeSandbox();
+  const firstGlobal = runFrom(sourceRoot, globalRoot, '--host', 'codex', '--profile', 'decameron', '--global', { env: { HOME: home } });
+  assert.equal(firstGlobal.status, 0, firstGlobal.stdout + firstGlobal.stderr);
+  assert.equal(fs.existsSync(path.join(home, '.agents', 'skills', 'build', 'SKILL.md')), true);
+
+  const profileFile = path.join(sourceRoot, 'profiles', 'decameron.json');
+  const profile = JSON.parse(fs.readFileSync(profileFile, 'utf8'));
+  profile.commands = profile.commands.filter((id) => id !== 'build');
+  fs.writeFileSync(profileFile, `${JSON.stringify(profile)}\n`);
+
+  const secondProject = runFrom(sourceRoot, projectRoot, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(secondProject.status, 0, secondProject.stdout + secondProject.stderr);
+  assert.equal(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'build')), false);
+
+  const projectManifest = JSON.parse(fs.readFileSync(path.join(projectRoot, '.agent-standard', 'installations', 'codex.json'), 'utf8'));
+  assert.equal(projectManifest.generatedCommandSkills.some((entry) => entry.id === 'build'), false);
+
+  const secondGlobal = runFrom(sourceRoot, globalRoot, '--host', 'codex', '--profile', 'decameron', '--global', { env: { HOME: home } });
+  assert.equal(secondGlobal.status, 0, secondGlobal.stdout + secondGlobal.stderr);
+  assert.equal(fs.existsSync(path.join(home, '.agents', 'skills', 'build')), false);
+});
+
+test('removes stale managed Skills and native Commands when a Profile is reduced', () => {
+  const sourceRoot = copyRepository();
+  const root = makeSandbox();
+  const first = runFrom(sourceRoot, root, '--host', 'claude', '--profile', 'decameron', '--project');
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'skills', 'api-and-interface-design')), true);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'commands', 'plan.md')), true);
+
+  const profileFile = path.join(sourceRoot, 'profiles', 'decameron.json');
+  const profile = JSON.parse(fs.readFileSync(profileFile, 'utf8'));
+  profile.skills = profile.skills.filter((id) => id !== 'api-and-interface-design');
+  profile.commands = profile.commands.filter((id) => id !== 'plan');
+  fs.writeFileSync(profileFile, `${JSON.stringify(profile)}\n`);
+
+  const second = runFrom(sourceRoot, root, '--host', 'claude', '--profile', 'decameron', '--project');
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'skills', 'api-and-interface-design')), false);
+  assert.equal(fs.existsSync(path.join(root, '.claude', 'commands', 'plan.md')), false);
 });
 
 test('keeps generated commands idempotent and refuses modified commands', () => {
@@ -690,6 +876,18 @@ test('installs a project overlay only after a matching global foundation exists'
 
   assert.equal(fs.existsSync(path.join(root, '.agent-standard')), true);
   assert.equal(fs.existsSync(path.join(home, '.cursor', 'skills', 'api-and-interface-design', 'SKILL.md')), true);
+});
+
+test('Codex overlay reuses globally generated Command Skills without duplicating them', () => {
+  const root = makeSandbox();
+  const home = makeSandbox();
+  const globalInstall = run(root, '--host', 'codex', '--profile', 'decameron', '--global', { env: { HOME: home } });
+  assert.equal(globalInstall.status, 0, globalInstall.stdout + globalInstall.stderr);
+  const overlay = run(root, 'sync', '--host', 'codex', '--profile', 'decameron', { env: { HOME: home } });
+  assert.equal(overlay.status, 0, overlay.stdout + overlay.stderr);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'skills')), false);
+  assert.equal(fs.existsSync(path.join(home, '.agents', 'skills', 'build', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(root, '.agents', 'commands')), false);
 });
 
 test('sync creates and updates the adapter-declared project instruction for every host', () => {
@@ -928,7 +1126,7 @@ test('accepts legacy global manifests without mode when no contextual Skills are
 test('materializes the complete Decameron foundation globally with explicit command fallbacks', () => {
   const cases = [
     { host: 'claude', root: '.claude', agents: '.claude', references: '.claude', commandsPath: '.claude', commands: 'native', mcp: '.claude.json' },
-    { host: 'codex', root: '.agents', agents: '.codex', references: '.agents', commands: 'fallback', mcp: '.codex/config.toml' },
+    { host: 'codex', root: '.agents', agents: '.codex', references: '.agents', commands: 'generated-skills', mcp: '.codex/config.toml' },
     { host: 'cursor', root: '.cursor', agents: '.cursor', references: '.cursor', commands: 'limited', mcp: '.cursor/mcp.json' },
     { host: 'gemini', root: '.gemini', agents: '.gemini', references: '.gemini', commandsPath: '.gemini', commands: 'native', mcp: '.gemini/settings.json' },
     { host: 'opencode', root: '.config/opencode', agents: '.config/opencode', references: '.config/opencode', commandsPath: '.config/opencode', commands: 'native', mcp: '.config/opencode/opencode.json' },
@@ -940,19 +1138,21 @@ test('materializes the complete Decameron foundation globally with explicit comm
     const hostRegistry = JSON.parse(fs.readFileSync(path.join(ROOT, 'registry', 'hosts.json'), 'utf8'));
     const host = hostRegistry.hosts.find((entry) => entry.id === expected.host);
     const adapter = JSON.parse(fs.readFileSync(path.join(ROOT, host.adapterPath, 'adapter.json'), 'utf8'));
-    assert.equal(adapter.globalCommandSupport, expected.commands, `${expected.host} global Command metadata`);
+    const expectedGlobalCommandSupport = expected.commands === 'generated-skills' ? 'fallback' : expected.commands;
+    assert.equal(adapter.globalCommandSupport, expectedGlobalCommandSupport, `${expected.host} global Command metadata`);
     const result = run(root, '--host', expected.host, '--profile', 'decameron', '--global', { env: { HOME: home } });
     assert.equal(result.status, 0, `${expected.host}: ${result.stdout}${result.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(home, '.agent-standard', 'installations', `${expected.host}.json`), 'utf8'));
     assert.equal(manifest.mode, 'global');
     assert.equal(manifest.profile, 'decameron');
     assert.equal(manifest.contextualSkills.length, 0);
-    assert.equal(fs.readdirSync(path.join(home, expected.root, 'skills')).length, 26, `${expected.host} base Skills`);
+    const expectedSkillCount = expected.commands === 'generated-skills' ? 36 : 26;
+    assert.equal(fs.readdirSync(path.join(home, expected.root, 'skills')).length, expectedSkillCount, `${expected.host} base Skills`);
     assert.equal(fs.readdirSync(path.join(home, expected.agents, 'agents')).length, 4, `${expected.host} Agents`);
     assert.equal(fs.readdirSync(path.join(home, expected.references, 'references')).length, 7, `${expected.host} References`);
     assert.equal(manifest.mcp.length, 2, `${expected.host} MCP`);
     if (expected.commands === 'native') assert.equal(fs.readdirSync(path.join(home, expected.commandsPath, 'commands')).length, 10, `${expected.host} Commands`);
-    if (expected.commands === 'fallback') assert.equal(fs.existsSync(path.join(home, expected.root, 'commands')), false, `${expected.host} Commands`);
+    if (expected.commands === 'generated-skills') assert.equal(fs.existsSync(path.join(home, expected.root, 'commands')), false, `${expected.host} Commands`);
     if (expected.commands === 'limited') assert.equal(fs.existsSync(path.join(home, expected.root, 'commands')), false, `${expected.host} Commands`);
     assert.equal(fs.existsSync(path.join(home, expected.mcp)), true, `${expected.host} MCP config`);
   }

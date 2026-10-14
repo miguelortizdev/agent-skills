@@ -106,13 +106,34 @@ function mergeJsonConfig(text, file, servers, representation) {
 function tomlString(value) { return JSON.stringify(value); }
 
 function validateCodexConfig(text, file) {
+  let multiline = null;
+  let arrayDepth = 0;
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
+    if (multiline) {
+      if (trimmed.includes(multiline)) multiline = null;
+      continue;
+    }
+    if (arrayDepth) {
+      arrayDepth += (trimmed.match(/\[/g) || []).length;
+      arrayDepth -= (trimmed.match(/\]/g) || []).length;
+      continue;
+    }
     if (!trimmed || trimmed.startsWith('#')) continue;
     if (/^\[[^\]]+\]$/.test(trimmed)) continue;
-    if (/^[A-Za-z0-9_.-]+\s*=/.test(trimmed)) continue;
+    const assignment = trimmed.match(/^(?:(?:[A-Za-z0-9_-]+|"(?:[^"\\]|\\.)+")\.)*(?:[A-Za-z0-9_-]+|"(?:[^"\\]|\\.)+")\s*=\s*(.*)$/);
+    if (assignment) {
+      const value = assignment[1];
+      const triple = value.match(/^("""|''')/);
+      if (triple && !value.slice(3).includes(triple[1])) multiline = triple[1];
+      if (value.startsWith('[')) {
+        arrayDepth = (value.match(/\[/g) || []).length - (value.match(/\]/g) || []).length;
+      }
+      continue;
+    }
     throw new Error(`invalid MCP config ${file}: unsupported TOML line`);
   }
+  if (multiline || arrayDepth) throw new Error(`invalid MCP config ${file}: unterminated TOML value`);
 }
 
 function renderCodexBlock(server) {

@@ -16,6 +16,13 @@ const TYPE_FIELDS = { skill: 'skills', command: 'commands', agent: 'agents', ref
 const mcp = require('./lib/mcp');
 const { detectProjectContext } = require('./lib/context-detector');
 const { resolveContextualSkills } = require('./lib/context-resolver');
+const {
+  generateCommandSkill,
+  generatedSkillId,
+  parseCanonicalCommand,
+  resolveCommandDependencies,
+  validateFallback,
+} = require('./lib/command-skill-generator');
 const { END_MARKER, START_MARKER, mergeProjectInstructions, removeProjectInstructions } = require('./lib/project-instructions');
 
 function readJson(file) {
@@ -23,10 +30,11 @@ function readJson(file) {
 }
 
 function parseArgs(argv) {
-  const options = { dryRun: false, global: false, project: false, overlay: false, uninstall: false };
+  const options = { dryRun: false, global: false, project: false, overlay: false, uninstall: false, refresh: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') options.dryRun = true;
+    else if (arg === 'refresh') options.refresh = true;
     else if (arg === '--uninstall') options.uninstall = true;
     else if (arg === '--global') options.global = true;
     else if (arg === '--project') options.project = true;
@@ -36,8 +44,10 @@ function parseArgs(argv) {
     else throw new Error(`unknown option: ${arg}`);
   }
   if (!options.host) throw new Error('--host is required');
-  if (!options.profile) throw new Error('--profile is required');
-  if (Number(options.global) + Number(options.project) + Number(options.overlay) !== 1) {
+  if (options.refresh && options.uninstall) throw new Error('refresh cannot be combined with --uninstall');
+  if (!options.refresh && !options.profile) throw new Error('--profile is required');
+  const scopeCount = Number(options.global) + Number(options.project) + Number(options.overlay);
+  if ((!options.refresh && scopeCount !== 1) || (options.refresh && scopeCount > 1)) {
     throw new Error('choose exactly one of --global, --project, or --overlay');
   }
   return options;
@@ -85,14 +95,7 @@ function hashFile(file) {
 }
 
 function canonicalCommand(source) {
-  const content = fs.readFileSync(source, 'utf8');
-  const descriptionMatch = content.match(/^description\s*=\s*"((?:[^"\\]|\\.)*)"/m);
-  const promptMatch = content.match(/^prompt\s*=\s*"""\r?\n([\s\S]*?)\r?\n"""/m);
-  if (!descriptionMatch || !promptMatch) throw new Error(`malformed canonical command: ${source}`);
-  return {
-    description: JSON.parse(`"${descriptionMatch[1]}"`),
-    prompt: promptMatch[1],
-  };
+  return parseCanonicalCommand(source);
 }
 
 function renderMarkdownCommand(command) {
@@ -230,10 +233,17 @@ function validateGlobalFoundation(hostId, profileName) {
   if (!Array.isArray(hostManifest.manifest.files) || hostManifest.manifest.files.length === 0) {
     throw new Error(`global foundation was not found for host ${hostId}`);
   }
-  const missing = hostManifest.manifest.files
-    .filter((file) => !fs.existsSync(safePath(globalRoot, file.path)))
-    .map((file) => file.path);
-  if (missing.length) throw new Error(`global foundation is incomplete for host ${hostId}; missing managed files: ${missing.join(', ')}`);
+  const invalid = [];
+  for (const file of hostManifest.manifest.files) {
+    const target = safePath(globalRoot, file.path);
+    if (!fs.existsSync(target)) {
+      invalid.push(file.path);
+      continue;
+    }
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink() || !stat.isFile() || (file.sha256 && hashFile(target) !== file.sha256)) invalid.push(file.path);
+  }
+  if (invalid.length) throw new Error(`global foundation is incomplete or modified for host ${hostId}; invalid managed files: ${invalid.join(', ')}`);
   return hostManifest.manifest;
 }
 
@@ -248,18 +258,31 @@ function writeManifest(file, manifest) {
 function buildPlan(options) {
   const catalog = readJson(CATALOG_FILE);
   const mcpRegistry = readJson(MCP_FILE);
-  const profile = readJson(path.join(PROFILE_DIR, `${options.profile}.json`));
-  if (profile.name !== options.profile) throw new Error(`profile filename does not match name: ${options.profile}`);
   const hosts = readJson(HOST_DIR).hosts;
   const host = hosts.find((entry) => entry.id === options.host);
   if (!host) throw new Error(`unknown host: ${options.host}`);
   const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
+  let installRoot = options.global ? os.homedir() : process.cwd();
+  let installationManifest = manifestPath(installRoot, host.id);
+  let existingManifest = readManifest(installationManifest);
+  if (options.refresh && !options.global && !options.project && !options.overlay) {
+    const projectManifest = readManifest(manifestPath(process.cwd(), host.id));
+    const globalManifest = readManifest(manifestPath(os.homedir(), host.id));
+    if (projectManifest && globalManifest) throw new Error(`refresh is ambiguous; choose --global or --project for host ${host.id}`);
+    if (!projectManifest && !globalManifest) throw new Error(`no existing installation found to refresh for host ${host.id}`);
+    options.global = Boolean(globalManifest);
+    options.project = Boolean(projectManifest);
+    installRoot = options.global ? os.homedir() : process.cwd();
+    installationManifest = manifestPath(installRoot, host.id);
+    existingManifest = options.global ? globalManifest : projectManifest;
+  }
+  if (options.refresh && !existingManifest) throw new Error(`no existing installation found to refresh for host ${host.id}`);
+  if (options.refresh && !options.profile) options.profile = existingManifest.profile;
+  const profile = readJson(path.join(PROFILE_DIR, `${options.profile}.json`));
+  if (profile.name !== options.profile) throw new Error(`profile filename does not match name: ${options.profile}`);
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
   const mode = requestedMode(options);
   const scope = options.global ? 'global' : 'project';
-  const installRoot = options.global ? os.homedir() : process.cwd();
-  const installationManifest = manifestPath(installRoot, host.id);
-  const existingManifest = readManifest(installationManifest);
   if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== scope)) {
     throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
   }
@@ -273,6 +296,7 @@ function buildPlan(options) {
   }
   const globalFoundation = mode === 'overlay' ? validateGlobalFoundation(host.id, profile.name) : null;
   const actions = [];
+  const generatedCommandSkills = [];
   const mcpActions = [];
   const skipped = [];
 
@@ -310,11 +334,32 @@ function buildPlan(options) {
     for (const id of selectedProfile[field] || []) {
       const asset = assets.get(id);
       if (!asset || asset.type !== type) throw new Error(`${profile.name}.${field} references an invalid ${type}: ${id}`);
+      const source = path.join(ROOT, asset.path);
       if (!destination) {
+        if (type === 'command' && adapter.commandFallback) {
+          if (!validateFallback(adapter.commandFallback)) throw new Error(`unsupported command fallback for ${host.id}`);
+          const generatedId = generatedSkillId(id, adapter.commandFallback);
+          const collision = assets.get(generatedId);
+          if (collision && collision.type === 'skill') throw new Error(`generated command Skill collides with canonical Skill: ${generatedId}`);
+          const command = parseCanonicalCommand(source, id, asset.path);
+          const dependencies = resolveCommandDependencies(id, assets);
+          const skillRoot = installDestinations(adapter, scope).skills;
+          if (!skillRoot) throw new Error(`host ${host.id} has no Skill destination for generated command: ${id}`);
+          const workScript = id === 'work' ? workScriptPath(skillRoot, scope) : null;
+          const generated = workScript ? { ...command, prompt: command.prompt.replaceAll('{{WORK_LIFECYCLE_SCRIPT}}', workScript) } : command;
+          const content = generateCommandSkill({
+            command: generated,
+            dependencies,
+            syntax: adapter.commandFallback.syntax.replace('<command-id>', generatedId),
+          });
+          const target = safePath(installRoot, path.join(skillRoot, generatedId, 'SKILL.md'));
+          actions.push({ source, content, target, generatedCommand: { id, skill: generatedId, source: asset.path } });
+          generatedCommandSkills.push({ id, skill: generatedId, source: asset.path, path: path.relative(installRoot, target) });
+          continue;
+        }
         skipped.push(`${field}/${id}: host has no native destination; use documented fallback`);
         continue;
       }
-      const source = path.join(ROOT, asset.path);
       const targetBase = safePath(installRoot, destination);
       if (type === 'command' && adapter.commandRepresentation) {
         const skillRoot = installDestinations(adapter, scope).skills;
@@ -375,12 +420,25 @@ function buildPlan(options) {
     mcpActions.push({ target, relativePath, format: representation.format, rootKey: representation.rootKey, nestedRootKey: representation.nestedRootKey, configCreated, content: merged.content, changed: merged.changed, entries: merged.entries });
   }
   const uniqueActions = [...new Map(actions.map((action) => [action.target, action])).values()];
+  const currentFilePaths = new Set(uniqueActions.map((action) => path.relative(installRoot, action.target)));
+  const staleContextPaths = new Set(staleContextFiles.map((entry) => entry.path));
+  const staleManagedFiles = (existingManifest?.files || []).filter((entry) =>
+    entry.created
+    && !currentFilePaths.has(entry.path)
+    && !staleContextPaths.has(entry.path)
+    && !entry.generatedCommand,
+  );
   const contextualRoots = contextualSkills.map((skill) => ({
     id: skill.id,
     evidence: skill.evidence,
     root: safePath(installRoot, path.join(installDestinations(adapter, scope).skills, skill.id)),
   }));
-  return { options, mode, scope, host, adapter, profile: selectedProfile, installRoot, actions: uniqueActions, mcpActions, projectInstructions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, globalFoundation };
+  const currentGeneratedPaths = new Set(generatedCommandSkills.map((entry) => entry.path));
+  const previousGenerated = existingManifest?.generatedCommandSkills || (existingManifest?.files || [])
+    .filter((entry) => entry.generatedCommand)
+    .map((entry) => ({ path: entry.path }));
+  const staleGeneratedFiles = previousGenerated.filter((entry) => !currentGeneratedPaths.has(entry.path));
+  return { options, mode, scope, host, adapter, profile: selectedProfile, installRoot, actions: uniqueActions, generatedCommandSkills, mcpActions, projectInstructions, skipped, installationManifest, existingManifest, detectedContext, contextualSkills, contextualRoots, staleContextFiles, staleManagedFiles, staleGeneratedFiles, globalFoundation };
 }
 
 function executeInstall(plan) {
@@ -394,6 +452,10 @@ function executeInstall(plan) {
   }
   const staleRemovable = [];
   const staleTransfers = [];
+  const staleGeneratedRemovable = [];
+  const staleGeneratedTransfers = [];
+  const staleManagedRemovable = [];
+  const staleManagedTransfers = [];
   for (const entry of plan.staleContextFiles) {
     const target = safePath(plan.installRoot, entry.path);
     const previous = previousFiles.get(entry.path) || entry;
@@ -406,13 +468,39 @@ function executeInstall(plan) {
     if (owners.length) staleTransfers.push({ target, owners });
     else staleRemovable.push(target);
   }
+  for (const entry of plan.staleGeneratedFiles || []) {
+    const target = safePath(plan.installRoot, entry.path);
+    const previous = previousFiles.get(entry.path);
+    if (!previous?.created || !fs.existsSync(target)) continue;
+    if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile() || hashFile(target) !== previous.sha256) {
+      conflicts.push(target);
+      continue;
+    }
+    const owners = otherOwners.get(entry.path) || [];
+    if (owners.length) staleGeneratedTransfers.push({ target, owners });
+    else staleGeneratedRemovable.push(target);
+  }
+  for (const entry of plan.staleManagedFiles || []) {
+    const target = safePath(plan.installRoot, entry.path);
+    if (!fs.existsSync(target)) continue;
+    if (fs.lstatSync(target).isSymbolicLink() || !fs.statSync(target).isFile() || hashFile(target) !== entry.sha256) {
+      conflicts.push(target);
+      continue;
+    }
+    const owners = otherOwners.get(entry.path) || [];
+    if (owners.length) staleManagedTransfers.push({ target, owners });
+    else staleManagedRemovable.push(target);
+  }
   for (const action of plan.actions) {
     assertNoSymlinkPath(plan.installRoot, path.dirname(action.target));
     if (fs.existsSync(action.target)) {
       if (fs.lstatSync(action.target).isSymbolicLink()) throw new Error(`refusing to write through symlink: ${action.target}`);
       const sourceContent = Buffer.from(action.content ?? fs.readFileSync(action.source));
       if (sourceContent.equals(fs.readFileSync(action.target))) continue;
-      conflicts.push(action.target);
+      const previous = previousFiles.get(path.relative(plan.installRoot, action.target));
+      const managedUnchanged = previous && previous.created && hashFile(action.target) === previous.sha256;
+      if (managedUnchanged) action.update = true;
+      else conflicts.push(action.target);
     }
   }
   for (const action of plan.projectInstructions) {
@@ -428,15 +516,16 @@ function executeInstall(plan) {
   for (const action of plan.actions) {
     const relative = path.relative(plan.installRoot, action.target);
     const existed = fs.existsSync(action.target);
-    if (!existed) {
+    if (!existed || action.update) {
       fs.mkdirSync(path.dirname(action.target), { recursive: true });
       if (action.content === undefined) fs.copyFileSync(action.source, action.target, fs.constants.COPYFILE_EXCL);
-      else fs.writeFileSync(action.target, action.content, { flag: 'wx' });
+      else fs.writeFileSync(action.target, action.content, { flag: existed ? 'w' : 'wx' });
     }
     files.push({
       path: relative,
       sha256: hashFile(action.target),
       created: previousFiles.has(relative) ? previousFiles.get(relative).created : !existed,
+      generatedCommand: action.generatedCommand,
     });
   }
   const projectInstructionRecords = [];
@@ -462,7 +551,29 @@ function executeInstall(plan) {
     successorFile.created = true;
     writeManifest(successor.owner.file, successor.owner.manifest);
   }
+  for (const transfer of staleGeneratedTransfers) {
+    const successor = transfer.owners[0];
+    const relative = path.relative(plan.installRoot, transfer.target);
+    const successorFile = successor.owner.manifest.files.find((file) => file.path === relative);
+    successorFile.created = true;
+    writeManifest(successor.owner.file, successor.owner.manifest);
+  }
+  for (const transfer of staleManagedTransfers) {
+    const successor = transfer.owners[0];
+    const relative = path.relative(plan.installRoot, transfer.target);
+    const successorFile = successor.owner.manifest.files.find((file) => file.path === relative);
+    successorFile.created = true;
+    writeManifest(successor.owner.file, successor.owner.manifest);
+  }
   for (const target of staleRemovable) {
+    fs.unlinkSync(target);
+    removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
+  for (const target of staleGeneratedRemovable) {
+    fs.unlinkSync(target);
+    removeEmptyParents(path.dirname(target), plan.installRoot);
+  }
+  for (const target of staleManagedRemovable) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
@@ -495,6 +606,7 @@ function executeInstall(plan) {
     context: context || undefined,
     files,
     projectInstructions: projectInstructionRecords,
+    generatedCommandSkills: plan.generatedCommandSkills,
     contextualSkills: contextualManifest,
     mcp: mcpRecords,
   });
@@ -582,6 +694,11 @@ function executeUninstall(plan) {
     mcpRemovalGroups.get(target).push(entry);
   }
   for (const [target, entries] of mcpRemovalGroups) {
+    const stat = fs.existsSync(target) && fs.lstatSync(target);
+    if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+      modified.push(target);
+      continue;
+    }
     const content = fs.readFileSync(target, 'utf8');
     const first = entries[0];
     const result = first.format === 'toml'
@@ -608,9 +725,15 @@ function executeUninstall(plan) {
     fs.unlinkSync(target);
     removeEmptyParents(path.dirname(target), plan.installRoot);
   }
-  for (const [target, content] of mcpChanges) fs.writeFileSync(target, content);
+  for (const [target, content] of mcpChanges) {
+    const stat = fs.existsSync(target) && fs.lstatSync(target);
+    if (!stat || stat.isSymbolicLink() || !stat.isFile()) throw new Error(`refusing to uninstall modified files:\n${target}`);
+    fs.writeFileSync(target, content);
+  }
   for (const target of mcpDeleteCandidates) {
     if (!fs.existsSync(target)) continue;
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`refusing to uninstall modified files:\n${target}`);
     if (mcpFormats.get(target) === 'toml' && fs.readFileSync(target, 'utf8').trim() === '') {
       fs.unlinkSync(target);
       removeEmptyParents(path.dirname(target), plan.installRoot);
@@ -658,7 +781,8 @@ function execute(plan) {
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const plan = options.uninstall ? uninstallPlan(options) : buildPlan(options);
-  console.log(`${plan.options.dryRun ? 'Dry run' : plan.options.uninstall ? 'Uninstall' : 'Install'}: ${plan.host.displayName} / ${plan.profile.name}`);
+  const actionLabel = plan.options.uninstall ? 'Uninstall' : plan.options.refresh ? 'Refresh' : 'Install';
+  console.log(`${plan.options.dryRun ? `Dry run: ${actionLabel}` : actionLabel}: ${plan.host.displayName} / ${plan.profile.name}`);
   console.log(`Target root: ${plan.installRoot}`);
   if (!plan.options.uninstall && plan.mode === 'overlay') {
     console.log('Global foundation: available');
@@ -673,7 +797,10 @@ function main() {
     for (const entry of plan.existingManifest.files || []) console.log(`${plan.options.dryRun ? '  would remove' : '  remove'} ${entry.path}`);
     for (const entry of plan.existingManifest.projectInstructions || []) console.log(`${plan.options.dryRun ? '  would update' : '  update'} project instructions ${entry.path}: remove ${START_MARKER} ... ${END_MARKER}`);
   } else {
-    for (const action of plan.actions) console.log(`${plan.options.dryRun ? '  would copy' : '  copy'} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
+    for (const action of plan.actions) {
+      const verb = action.generatedCommand ? 'generate Command Skill' : 'copy';
+      console.log(`${plan.options.dryRun ? `  would ${verb}` : `  ${verb}`} ${path.relative(ROOT, action.source)} -> ${path.relative(plan.installRoot, action.target)}`);
+    }
     for (const action of plan.mcpActions) console.log(`${plan.options.dryRun ? '  would merge MCP' : '  merge MCP'} ${path.relative(plan.installRoot, action.target)}: ${action.entries.map((entry) => entry.id).join(', ')}`);
     for (const action of plan.projectInstructions) if (action.changed) console.log(`${plan.options.dryRun ? '  would update' : '  update'} project instructions ${action.path}: ${action.created ? 'create' : 'merge'} ${START_MARKER} ... ${END_MARKER}`);
     console.log(`${plan.options.dryRun ? '  would write' : '  write'} ${path.relative(plan.installRoot, plan.installationManifest)}`);

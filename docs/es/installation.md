@@ -43,6 +43,27 @@ Uso diario: utiliza normalmente los Commands del Host. `sync` también mantiene
 el bloque de instrucciones administrado del proyecto para usar los Skills del
 proyecto relevantes junto con los Skills base requeridos por los Commands.
 
+## Refrescar Adapters Codex
+
+Después de actualizar un Command canónico en `commands/*.toml`, refresca los
+Skills derivados sin volver a escribir el Profile:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --global
+```
+
+Para una instalación Project, ejecútalo desde la raíz del proyecto:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --project
+```
+
+También puedes omitir `--global` o `--project` cuando solo existe una
+instalación Codex detectable. Si existen ambas, indica el alcance explícitamente.
+Usa `--dry-run` para revisar los cambios antes de escribirlos.
+
 ## Instalación Del Ciclo De Trabajo
 
 En Project Full, `/work` resuelve su script Node desde
@@ -50,8 +71,29 @@ En Project Full, `/work` resuelve su script Node desde
 de una Foundation global resuelven el mismo script desde el directorio global
 del Skill; los proyectos Overlay usan la Foundation global. Así `/work start`,
 `/work switch` y `/work close` no dependen de la ubicación del repositorio fuente.
-Codex no tiene un directorio nativo de Commands en este Profile; usa
-directamente el Skill `work-lifecycle` instalado y no crees `.codex/commands`.
+Codex no tiene un directorio nativo de Commands en este Profile. El adapter
+mantiene `globalCommandSupport: fallback` y genera un Skill por cada Command
+seleccionado en `.agents/skills/<command-id>/SKILL.md`; no crea
+`.codex/commands`. Los Skills generados conservan el prompt canónico completo,
+incluidos modos como `$build auto`, y listan las dependencias con su tipo real.
+`/work` resuelve el script instalado de `work-lifecycle`, no una ruta del
+repositorio fuente.
+
+En Codex, invoca los adapters generados con `$`:
+
+```text
+$spec
+$plan
+$build auto
+$work start feature dingus --from main
+```
+
+Las instalaciones Global y Project Full generan los adapters localmente. Los
+proyectos Overlay reutilizan la Foundation global y no los duplican. El dry-run
+muestra los destinos generados; una actualización refresca un adapter
+administrado que no fue modificado, mientras que una modificación manual
+produce un conflicto seguro. Uninstall elimina únicamente Skills generados cuyo
+ownership esté probado y que permanezcan sin cambios.
 
 ## Instrucciones Del Proyecto
 
