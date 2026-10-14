@@ -330,19 +330,19 @@ test('uses OpenCode V2 MCP servers and shared OpenChamber ownership', () => {
   }
   const configPath = path.join(root, 'opencode.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  assert.deepEqual(Object.keys(config.mcp), ['servers']);
-  assert.deepEqual(Object.keys(config.mcp.servers).sort(), ['context7', 'kubernetes']);
-  assert.deepEqual(config.mcp.servers.context7, {
+  assert.deepEqual(Object.keys(config.mcp).sort(), ['context7', 'kubernetes']);
+  assert.equal(config.mcp.servers, undefined);
+  assert.deepEqual(config.mcp.context7, {
     type: 'local',
     command: ['npx', '-y', '@upstash/context7-mcp'],
   });
-  assert.equal(config.mcp.servers.kubernetes.enabled, undefined);
-  assert.equal(config.mcp.servers.kubernetes.disabled, undefined);
+  assert.equal(config.mcp.kubernetes.enabled, undefined);
+  assert.equal(config.mcp.kubernetes.disabled, undefined);
 
   const firstUninstall = run(root, '--host', 'opencode', '--profile', 'decameron', '--project', '--uninstall');
   assert.equal(firstUninstall.status, 0, firstUninstall.stdout + firstUninstall.stderr);
   assert.equal(fs.existsSync(configPath), true);
-  assert.match(fs.readFileSync(configPath, 'utf8'), /"servers"/);
+  assert.match(fs.readFileSync(configPath, 'utf8'), /"context7"/);
   const secondUninstall = run(root, '--host', 'openchamber', '--profile', 'decameron', '--project', '--uninstall');
   assert.equal(secondUninstall.status, 0, secondUninstall.stdout + secondUninstall.stderr);
   assert.equal(fs.existsSync(configPath), false);
@@ -358,7 +358,7 @@ test('respects existing higher-precedence OpenCode project configuration', () =>
   assert.equal(fs.existsSync(path.join(root, 'opencode.json')), false);
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   assert.equal(config.projectSetting, true);
-  assert.deepEqual(Object.keys(config.mcp.servers).sort(), ['context7', 'kubernetes']);
+  assert.deepEqual(Object.keys(config.mcp).sort(), ['context7', 'kubernetes']);
 });
 
 test('merges Codex MCP around unrelated TOML and cleans installer-owned config', () => {
@@ -438,8 +438,8 @@ test('writes MCP configuration in each host native representation', () => {
     ['claude', '.mcp.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
     ['cursor', '.cursor/mcp.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
     ['gemini', '.gemini/settings.json', (content) => assert.equal(JSON.parse(content).mcpServers.context7.command, 'npx')],
-    ['opencode', 'opencode.json', (content) => assert.deepEqual(JSON.parse(content).mcp.servers.context7.command, ['npx', '-y', '@upstash/context7-mcp'])],
-    ['openchamber', 'opencode.json', (content) => assert.deepEqual(JSON.parse(content).mcp.servers.context7.command, ['npx', '-y', '@upstash/context7-mcp'])],
+    ['opencode', 'opencode.json', (content) => assert.deepEqual(JSON.parse(content).mcp.context7.command, ['npx', '-y', '@upstash/context7-mcp'])],
+    ['openchamber', 'opencode.json', (content) => assert.deepEqual(JSON.parse(content).mcp.context7.command, ['npx', '-y', '@upstash/context7-mcp'])],
   ];
   for (const [host, relative, verify] of cases) {
     const root = makeSandbox();
@@ -449,7 +449,7 @@ test('writes MCP configuration in each host native representation', () => {
   }
 });
 
-test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', () => {
+test('preserves configured MCP, installs missing servers, and refuses malformed JSON', () => {
   const root = makeSandbox();
   const configPath = path.join(root, '.cursor', 'mcp.json');
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
@@ -462,8 +462,10 @@ test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', (
     context7: { command: 'other', args: [], type: 'stdio' },
   } }, null, 2) + '\n');
   const conflict = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
-  assert.equal(conflict.status, 1);
-  assert.match(conflict.stderr, /MCP 'context7' already exists/);
+  assert.equal(conflict.status, 0, conflict.stdout + conflict.stderr);
+  const merged = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  assert.deepEqual(merged.mcpServers.context7, { command: 'other', args: [], type: 'stdio' });
+  assert.ok(merged.mcpServers.kubernetes);
 
   const malformedRoot = makeSandbox();
   const malformedPath = path.join(malformedRoot, '.cursor', 'mcp.json');

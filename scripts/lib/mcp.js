@@ -92,7 +92,6 @@ function mergeJsonConfig(text, file, servers, representation) {
     const rendered = representation.render(server);
     const existing = root[server.id];
     if (existing !== undefined) {
-      if (fingerprint(existing) !== fingerprint(rendered)) throw new Error(`MCP '${server.id}' already exists with a different configuration.`);
       entries.push({ id: server.id, fingerprint: fingerprint(rendered), created: false });
     } else {
       root[server.id] = rendered;
@@ -192,7 +191,6 @@ function mergeCodexConfig(text, file, servers) {
     const block = renderCodexBlock(server);
     const existing = codexBlocks(content).find((entry) => entry.id === server.id);
     if (existing) {
-      if (normalizeCodexBlock(existing.content) !== normalizeCodexBlock(block)) throw new Error(`MCP '${server.id}' already exists with a different configuration.`);
       entries.push({ id: server.id, fingerprint: fingerprint(block), created: false });
     } else {
       if (content && !content.endsWith('\n')) content += '\n';
