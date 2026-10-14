@@ -30,6 +30,13 @@ $test
 $work start feature dingus --from main
 ```
 
+After updating a canonical Command, refresh the generated adapters with:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --global
+```
+
 `auto` is an argument interpreted by the generated `$build` Skill, not a native
 Codex subcommand. The generated Skill contains the complete canonical prompt;
 Agents and References remain typed dependencies rather than becoming `$`

@@ -43,6 +43,27 @@ Uso diario: utiliza normalmente los Commands del Host. `sync` también mantiene
 el bloque de instrucciones administrado del proyecto para usar los Skills del
 proyecto relevantes junto con los Skills base requeridos por los Commands.
 
+## Refrescar Adapters Codex
+
+Después de actualizar un Command canónico en `commands/*.toml`, refresca los
+Skills derivados sin volver a escribir el Profile:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --global
+```
+
+Para una instalación Project, ejecútalo desde la raíz del proyecto:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --project
+```
+
+También puedes omitir `--global` o `--project` cuando solo existe una
+instalación Codex detectable. Si existen ambas, indica el alcance explícitamente.
+Usa `--dry-run` para revisar los cambios antes de escribirlos.
+
 ## Instalación Del Ciclo De Trabajo
 
 En Project Full, `/work` resuelve su script Node desde

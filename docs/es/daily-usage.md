@@ -30,6 +30,13 @@ $test
 $work start feature dingus --from main
 ```
 
+Si actualizas un Command canónico, refresca los adapters generados con:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --global
+```
+
 `auto` es un argumento interpretado por el Skill generado `$build`, no un
 subcomando nativo de Codex. El Skill generado contiene el prompt canónico
 completo; Agents y References conservan su tipo y no se convierten en

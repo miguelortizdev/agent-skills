@@ -43,6 +43,27 @@ Daily: use the Host's Commands normally. `sync` also maintains the project's
 managed instruction block so relevant project Skills can be used alongside the
 base Skills required by Commands.
 
+## Refreshing Codex Adapters
+
+After updating a canonical Command under `commands/*.toml`, refresh the derived
+Skills without rewriting the Profile:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --global
+```
+
+For a Project installation, run it from the project root:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --project
+```
+
+You may omit `--global` or `--project` when only one Codex installation is
+detectable. If both exist, specify the scope explicitly. Add `--dry-run` to
+preview changes before writing them.
+
 ## Work Lifecycle Installation
 
 For Project Full, `/work` resolves its Node script from the installed
