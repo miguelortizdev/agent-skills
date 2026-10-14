@@ -42,6 +42,35 @@ Codex subcommand. The generated Skill contains the complete canonical prompt;
 Agents and References remain typed dependencies rather than becoming `$`
 invocations. Other Hosts continue using their native Command surfaces.
 
+## Installer Commands During Daily Work
+
+Install once, then refresh a project's context from its root when needed:
+
+```bash
+node /path/to/agent-skills/scripts/install-agent-standard.js \
+  sync --host <host> --profile <profile>
+```
+
+Use these variants for common maintenance tasks:
+
+| Task | Command |
+| --- | --- |
+| Preview a Global Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --dry-run` |
+| Preview a Full Project Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --dry-run` |
+| Preview an Overlay | `node /path/to/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --dry-run` |
+| Preview global Codex adapter refresh | `node /path/to/agent-skills/scripts/install-agent-standard.js refresh --host codex --global --dry-run` |
+| Preview project Codex adapter refresh | `node /path/to/agent-skills/scripts/install-agent-standard.js refresh --host codex --project --dry-run` |
+| Uninstall a Global Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --uninstall` |
+| Uninstall a Full Project Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --uninstall` |
+| Uninstall an Overlay | `node /path/to/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --uninstall` |
+
+Add `--dry-run` to any install, refresh, or uninstall command to preview it.
+The installer preserves already configured MCP servers and adds only missing
+servers; it does not overwrite existing configuration.
+
+Do not use `--uninstall` to clean untracked files: it removes only registered,
+unchanged files with verified ownership.
+
 For a new project, run `sync --host <host> --profile decameron` after the global
 Foundation exists. The Overlay also maintains the Host's project instruction
 file so relevant project Skills are used with the base Skills required by

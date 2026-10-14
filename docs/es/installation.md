@@ -43,6 +43,82 @@ Uso diario: utiliza normalmente los Commands del Host. `sync` también mantiene
 el bloque de instrucciones administrado del proyecto para usar los Skills del
 proyecto relevantes junto con los Skills base requeridos por los Commands.
 
+## Referencia Del Instalador
+
+La forma general del comando es:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js [refresh|sync] \
+  --host <host> [--profile <profile>] \
+  [--global | --project | --overlay] \
+  [--dry-run] [--uninstall]
+```
+
+Valores válidos:
+
+| Opción | Valores | Función |
+| --- | --- | --- |
+| `--host` | `claude`, `codex`, `cursor`, `gemini`, `opencode`, `openchamber` | Selecciona el Host de destino. Es obligatoria. |
+| `--profile` | `default`, `decameron` | Selecciona el conjunto de assets. Es obligatorio salvo en `refresh`, donde se toma del manifest existente. |
+| `--global` | — | Instala o desinstala la Foundation en el HOME del usuario. |
+| `--project` | — | Instala o desinstala una Foundation completa en el proyecto actual. |
+| `sync` | — | Alias de `--overlay`; sincroniza solo el contexto del proyecto. |
+| `--overlay` | — | Forma explícita de `sync`. Requiere una Foundation global compatible. |
+| `refresh` | — | Regenera los adapters derivados de Codex. No se combina con `--uninstall`. |
+| `--dry-run` | — | Muestra las acciones sin escribir archivos. |
+| `--uninstall` | — | Elimina solo una instalación registrada, cuyos archivos sigan bajo ownership y sin modificaciones. |
+
+Debe elegirse exactamente un alcance (`--global`, `--project` o `sync`/`--overlay`)
+para instalar o desinstalar. `refresh` puede detectar automáticamente el único
+manifest Codex existente; si existen instalaciones Global y Project, indica el
+alcance explícitamente.
+
+### Instalación Global
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  --global --host <host> --profile <profile>
+```
+
+Previsualización:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  --global --host <host> --profile <profile> --dry-run
+```
+
+### Instalación Project Full
+
+Ejecuta el comando desde la raíz del proyecto:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  --project --host <host> --profile <profile>
+```
+
+Este modo instala Foundation, contexto detectado, MCP y manifest dentro del
+proyecto. Usa `--dry-run` para revisar antes de escribir.
+
+### Overlay Project (`sync`)
+
+Ejecuta el comando desde la raíz del proyecto después de instalar la Foundation
+global compatible:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  sync --host <host> --profile <profile>
+```
+
+Equivalente explícito:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  --overlay --host <host> --profile <profile>
+```
+
+El Overlay no duplica Foundation, Commands, Agents, References ni MCP globales.
+Solo sincroniza Skills contextuales y las instrucciones administradas del proyecto.
+
 ## Refrescar Adapters Codex
 
 Después de actualizar un Command canónico en `commands/*.toml`, refresca los
@@ -63,6 +139,16 @@ node /ruta/agent-skills/scripts/install-agent-standard.js \
 También puedes omitir `--global` o `--project` cuando solo existe una
 instalación Codex detectable. Si existen ambas, indica el alcance explícitamente.
 Usa `--dry-run` para revisar los cambios antes de escribirlos.
+
+Si hay una instalación Global y otra Project, elige una:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --global
+
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  refresh --host codex --project
+```
 
 ## Instalación Del Ciclo De Trabajo
 
@@ -140,5 +226,29 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 Para un Overlay, usa `sync --uninstall` o la forma explícita
 `--overlay --uninstall`. Solo se eliminan archivos cuyo ownership está probado y
 que no cambiaron; los archivos del usuario permanecen.
+
+Desinstalación Global:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  --global --host <host> --profile <profile> --uninstall
+```
+
+Desinstalación Project Full:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  --project --host <host> --profile <profile> --uninstall
+```
+
+Previsualización de cualquier desinstalación:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  --project --host <host> --profile <profile> --uninstall --dry-run
+```
+
+No uses `--uninstall` sin un manifest existente: el installer no elimina archivos
+no registrados de forma automática.
 
 Consulta las [guías de Host](../adapters/README.md) para destinos nativos.

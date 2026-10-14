@@ -43,6 +43,36 @@ completo; Agents y References conservan su tipo y no se convierten en
 invocaciones mediante `$`. Los demás Hosts siguen usando sus superficies nativas
 de Commands.
 
+## Comandos Del Instalador Durante El Día
+
+La instalación normal se hace una vez. Para actualizar el contexto de un
+proyecto existente, ejecuta desde su raíz:
+
+```bash
+node /ruta/agent-skills/scripts/install-agent-standard.js \
+  sync --host <host> --profile <profile>
+```
+
+Usa estas variantes según la tarea:
+
+| Tarea | Comando |
+| --- | --- |
+| Revisar una Foundation global | `node /ruta/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --dry-run` |
+| Revisar una Foundation Project | `node /ruta/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --dry-run` |
+| Revisar un Overlay | `node /ruta/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --dry-run` |
+| Refrescar adapters Codex globales | `node /ruta/agent-skills/scripts/install-agent-standard.js refresh --host codex --global --dry-run` |
+| Refrescar adapters Codex del proyecto | `node /ruta/agent-skills/scripts/install-agent-standard.js refresh --host codex --project --dry-run` |
+| Desinstalar una Foundation global | `node /ruta/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --uninstall` |
+| Desinstalar una Foundation Project | `node /ruta/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --uninstall` |
+| Desinstalar un Overlay | `node /ruta/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --uninstall` |
+
+Agrega `--dry-run` a cualquier instalación, refresh o desinstalación para
+previsualizarla. El instalador conserva MCP ya configurado y agrega solo los
+servidores ausentes; no sobrescribe la configuración existente.
+
+No uses `--uninstall` para limpiar archivos sin manifest: solo elimina archivos
+registrados, sin cambios y con ownership comprobado.
+
 Para un proyecto nuevo, ejecuta `sync --host <host> --profile decameron` después
 de instalar la Foundation global. El Overlay también mantiene el archivo de
 instrucciones del proyecto del Host para usar Skills relevantes del proyecto
