@@ -101,6 +101,16 @@ test('keeps Codex unrelated tables outside MCP blocks', () => {
   ]);
 });
 
+test('keeps an existing Codex MCP server with a different configuration', () => {
+  const before = '[mcp_servers.context7]\ncommand = "other"\n';
+  const merged = mcp.mergeCodexConfig(before, '.codex/config.toml', [{
+    name: 'Context7', id: 'context7', transport: 'stdio', command: 'npx', args: [], env: {},
+  }]);
+  assert.equal(merged.changed, false);
+  assert.equal(merged.entries[0].created, false);
+  assert.equal(merged.content, before);
+});
+
 test('removes an MCP block while preserving following TOML tables', () => {
   const before = '[mcp_servers.context7]\ncommand = "npx"\n\n[features]\nsome_setting = true\n';
   const result = mcp.removeCodexEntries(before, [{

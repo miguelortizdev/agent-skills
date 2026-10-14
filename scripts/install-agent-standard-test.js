@@ -449,7 +449,7 @@ test('writes MCP configuration in each host native representation', () => {
   }
 });
 
-test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', () => {
+test('preserves configured MCP, installs missing servers, and refuses malformed JSON', () => {
   const root = makeSandbox();
   const configPath = path.join(root, '.cursor', 'mcp.json');
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
@@ -462,8 +462,10 @@ test('preserves identical MCP, rejects conflicts, and refuses malformed JSON', (
     context7: { command: 'other', args: [], type: 'stdio' },
   } }, null, 2) + '\n');
   const conflict = run(root, '--host', 'cursor', '--profile', 'decameron', '--project');
-  assert.equal(conflict.status, 1);
-  assert.match(conflict.stderr, /MCP 'context7' already exists/);
+  assert.equal(conflict.status, 0, conflict.stdout + conflict.stderr);
+  const merged = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  assert.deepEqual(merged.mcpServers.context7, { command: 'other', args: [], type: 'stdio' });
+  assert.ok(merged.mcpServers.kubernetes);
 
   const malformedRoot = makeSandbox();
   const malformedPath = path.join(malformedRoot, '.cursor', 'mcp.json');
