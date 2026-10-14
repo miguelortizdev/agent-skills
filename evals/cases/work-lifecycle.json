@@ -1,0 +1,45 @@
+{
+  "skill_name": "work-lifecycle",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "Start a feature in an isolated Git Worktree",
+        "top_k": 1
+      },
+      {
+        "prompt": "Switch back to the Worktree for the interrupted bugfix",
+        "top_k": 3
+      },
+      {
+        "prompt": "Close this work item and archive its SPEC and plan without committing code",
+        "top_k": 3
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "Review this pull request for security problems",
+        "owner": "code-review-and-quality"
+      },
+      {
+        "prompt": "Create the implementation plan for this feature",
+        "owner": "planning-and-task-breakdown"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Start a hotfix from main in a separate Worktree, then explain how to archive its documents safely.",
+      "expected_output": "A safe lifecycle plan using the deterministic script, isolated Git state, selective document archival, and no remote operations.",
+      "files": [
+        "work-lifecycle/README.md"
+      ],
+      "expectations": [
+        "The response validates branch and source-reference safety before creating work",
+        "The response isolates concurrent work with a Worktree when needed",
+        "The response archives only existing work documents and stages no unrelated files",
+        "The response avoids remote or destructive Git operations"
+      ]
+    }
+  ]
+}

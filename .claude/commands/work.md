@@ -1,0 +1,32 @@
+---
+description: Start, switch, or close an isolated engineering work item without remote Git operations
+---
+
+Invoke the agent-skills:work-lifecycle skill.
+
+Use the bundled deterministic script for Git and filesystem operations. The
+installer replaces `{{WORK_LIFECYCLE_SCRIPT}}` with the actual installed Skill
+path; do not substitute a repository-source path manually:
+
+```bash
+node {{WORK_LIFECYCLE_SCRIPT}} <start|switch|close> ...
+```
+
+Supported work types are `feature`, `bugfix`, `hotfix`, `refactor`, `chore`, and `spike`.
+
+Syntax:
+
+```text
+/work start <type> <name> [--from <reference>] [--worktree]
+/work start <type> <name> --existing [--worktree]
+/work switch [name-or-branch]
+/work close [--allow-incomplete]
+```
+
+Use `--from` to create a new branch. Use `--existing` only to reuse an
+already-created local branch; it never fetches remote branches or creates a
+replacement branch. If the branch is already in another Worktree, the script
+reports its path. If it is not associated with a Worktree, it switches to it
+when safe or creates an isolated Worktree without `-b`.
+
+Never perform push, pull, merge, rebase, reset, stash, branch deletion, or Worktree deletion automatically. Do not generate SPEC.md or plans; use `/spec` and `/plan`. Pending checklist items require explicit `--allow-incomplete`.

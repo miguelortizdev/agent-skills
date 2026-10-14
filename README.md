@@ -29,7 +29,7 @@ Skills encode the workflows, quality gates, and best practices that senior engin
 
 ## Commands
 
-9 slash commands that map to the development lifecycle. Each one activates the right skills automatically.
+10 slash commands that map to the development lifecycle. Each one activates the right skills automatically.
 
 | What you're doing | Command | Key principle |
 |-------------------|---------|---------------|
@@ -42,6 +42,7 @@ Skills encode the workflows, quality gates, and best practices that senior engin
 | Audit web performance | `/webperf` | Measure before you optimize |
 | Simplify the code | `/code-simplify` | Clarity over cleverness |
 | Ship to production | `/ship` | Faster is safer |
+| Manage isolated work | `/work` | Preserve branch and document integrity |
 
 Want fewer manual steps once the spec exists? **`/build auto`** generates the plan and implements every task in a single approved pass — you approve the plan once, then it runs autonomously. It removes the human stepping *between* tasks, not the verification: every task is still test-driven and committed individually, and it pauses on failures or risky steps.
 
@@ -71,7 +72,7 @@ npx skills add addyosmani/agent-skills --skill test-driven-development   # red-g
 The repository installer supports a shared Global Foundation and a lightweight
 Project Context Overlay. Install the foundation once, then sync project context
 when contextual Skills are registered. The `decameron` profile includes the full
-25-Skill, 9-Command, 4-Agent, and 7-Reference foundation plus corporate MCP.
+26-Skill, 10-Command, 4-Agent, and 7-Reference foundation plus corporate MCP.
 
 ```bash
 node scripts/install-agent-standard.js \
