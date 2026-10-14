@@ -655,6 +655,39 @@ test('generates a newly registered Command through the installer without hardcod
   assert.match(readInstalled(root, '.agents/skills/later/SKILL.md'), /Use the later workflow exactly/);
 });
 
+test('refreshes Codex generated Skills from updated canonical Commands', () => {
+  const sourceRoot = copyRepository();
+  const root = makeSandbox();
+  const install = runFrom(sourceRoot, root, '--host', 'codex', '--profile', 'decameron', '--project');
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+
+  const commandFile = path.join(sourceRoot, 'commands', 'build.toml');
+  const command = fs.readFileSync(commandFile, 'utf8');
+  fs.writeFileSync(commandFile, command.replace(/\n"""\s*$/, '\nRefresh marker from canonical Command.\n"""\n'));
+
+  const dryRun = runFrom(sourceRoot, root, 'refresh', '--host', 'codex', '--project', '--dry-run');
+  assert.equal(dryRun.status, 0, dryRun.stdout + dryRun.stderr);
+  assert.match(dryRun.stdout, /Refresh/);
+  assert.match(dryRun.stdout, /generate Command Skill/);
+
+  const refresh = runFrom(sourceRoot, root, 'refresh', '--host', 'codex', '--project');
+  assert.equal(refresh.status, 0, refresh.stdout + refresh.stderr);
+  assert.match(readInstalled(root, '.agents/skills/build/SKILL.md'), /Refresh marker from canonical Command/);
+});
+
+test('refresh infers the existing Codex project installation and preserves conflicts', () => {
+  const sourceRoot = copyRepository();
+  const root = makeSandbox();
+  const home = makeSandbox();
+  const install = runFrom(sourceRoot, root, '--host', 'codex', '--profile', 'decameron', '--project', { env: { HOME: home } });
+  assert.equal(install.status, 0, install.stdout + install.stderr);
+  fs.appendFileSync(path.join(root, '.agents', 'skills', 'build', 'SKILL.md'), '\nlocal modification\n');
+
+  const refresh = runFrom(sourceRoot, root, 'refresh', '--host', 'codex', { env: { HOME: home } });
+  assert.equal(refresh.status, 1);
+  assert.match(refresh.stderr, /refusing to overwrite existing files/);
+});
+
 test('refuses to overwrite a manually modified generated Codex Skill', () => {
   const root = makeSandbox();
   const first = run(root, '--host', 'codex', '--profile', 'decameron', '--project');

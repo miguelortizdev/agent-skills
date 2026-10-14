@@ -30,10 +30,11 @@ function readJson(file) {
 }
 
 function parseArgs(argv) {
-  const options = { dryRun: false, global: false, project: false, overlay: false, uninstall: false };
+  const options = { dryRun: false, global: false, project: false, overlay: false, uninstall: false, refresh: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') options.dryRun = true;
+    else if (arg === 'refresh') options.refresh = true;
     else if (arg === '--uninstall') options.uninstall = true;
     else if (arg === '--global') options.global = true;
     else if (arg === '--project') options.project = true;
@@ -43,8 +44,10 @@ function parseArgs(argv) {
     else throw new Error(`unknown option: ${arg}`);
   }
   if (!options.host) throw new Error('--host is required');
-  if (!options.profile) throw new Error('--profile is required');
-  if (Number(options.global) + Number(options.project) + Number(options.overlay) !== 1) {
+  if (options.refresh && options.uninstall) throw new Error('refresh cannot be combined with --uninstall');
+  if (!options.refresh && !options.profile) throw new Error('--profile is required');
+  const scopeCount = Number(options.global) + Number(options.project) + Number(options.overlay);
+  if ((!options.refresh && scopeCount !== 1) || (options.refresh && scopeCount > 1)) {
     throw new Error('choose exactly one of --global, --project, or --overlay');
   }
   return options;
@@ -255,18 +258,31 @@ function writeManifest(file, manifest) {
 function buildPlan(options) {
   const catalog = readJson(CATALOG_FILE);
   const mcpRegistry = readJson(MCP_FILE);
-  const profile = readJson(path.join(PROFILE_DIR, `${options.profile}.json`));
-  if (profile.name !== options.profile) throw new Error(`profile filename does not match name: ${options.profile}`);
   const hosts = readJson(HOST_DIR).hosts;
   const host = hosts.find((entry) => entry.id === options.host);
   if (!host) throw new Error(`unknown host: ${options.host}`);
   const adapter = readJson(path.join(ROOT, host.adapterPath, 'adapter.json'));
+  let installRoot = options.global ? os.homedir() : process.cwd();
+  let installationManifest = manifestPath(installRoot, host.id);
+  let existingManifest = readManifest(installationManifest);
+  if (options.refresh && !options.global && !options.project && !options.overlay) {
+    const projectManifest = readManifest(manifestPath(process.cwd(), host.id));
+    const globalManifest = readManifest(manifestPath(os.homedir(), host.id));
+    if (projectManifest && globalManifest) throw new Error(`refresh is ambiguous; choose --global or --project for host ${host.id}`);
+    if (!projectManifest && !globalManifest) throw new Error(`no existing installation found to refresh for host ${host.id}`);
+    options.global = Boolean(globalManifest);
+    options.project = Boolean(projectManifest);
+    installRoot = options.global ? os.homedir() : process.cwd();
+    installationManifest = manifestPath(installRoot, host.id);
+    existingManifest = options.global ? globalManifest : projectManifest;
+  }
+  if (options.refresh && !existingManifest) throw new Error(`no existing installation found to refresh for host ${host.id}`);
+  if (options.refresh && !options.profile) options.profile = existingManifest.profile;
+  const profile = readJson(path.join(PROFILE_DIR, `${options.profile}.json`));
+  if (profile.name !== options.profile) throw new Error(`profile filename does not match name: ${options.profile}`);
   const assets = new Map(catalog.assets.map((asset) => [asset.id, asset]));
   const mode = requestedMode(options);
   const scope = options.global ? 'global' : 'project';
-  const installRoot = options.global ? os.homedir() : process.cwd();
-  const installationManifest = manifestPath(installRoot, host.id);
-  const existingManifest = readManifest(installationManifest);
   if (existingManifest && (existingManifest.host !== host.id || existingManifest.profile !== profile.name || existingManifest.scope !== scope)) {
     throw new Error(`a different profile is already installed (${existingManifest.host}/${existingManifest.profile}); uninstall it before switching profiles`);
   }
@@ -765,7 +781,8 @@ function execute(plan) {
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const plan = options.uninstall ? uninstallPlan(options) : buildPlan(options);
-  console.log(`${plan.options.dryRun ? 'Dry run' : plan.options.uninstall ? 'Uninstall' : 'Install'}: ${plan.host.displayName} / ${plan.profile.name}`);
+  const actionLabel = plan.options.uninstall ? 'Uninstall' : plan.options.refresh ? 'Refresh' : 'Install';
+  console.log(`${plan.options.dryRun ? `Dry run: ${actionLabel}` : actionLabel}: ${plan.host.displayName} / ${plan.profile.name}`);
   console.log(`Target root: ${plan.installRoot}`);
   if (!plan.options.uninstall && plan.mode === 'overlay') {
     console.log('Global foundation: available');
