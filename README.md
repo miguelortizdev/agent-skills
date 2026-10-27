@@ -116,13 +116,13 @@ Prefer a native integration? Pick your tool below.
 
 ```
 /plugin marketplace add miguelortizdev/agent-skills
-/plugin install agent-skills@miguelortizdev-agent-skills
+/plugin install agent-skills@ai-engineering-standard
 ```
 
 > **SSH errors?** The marketplace clones repos via SSH. If you don't have SSH keys set up on GitHub, either [add your SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account) or use the full HTTPS URL to force HTTPS cloning during the marketplace-add step:
 > ```bash
 > /plugin marketplace add https://github.com/miguelortizdev/agent-skills.git
-> /plugin install agent-skills@miguelortizdev-agent-skills
+> /plugin install agent-skills@ai-engineering-standard
 > ```
 >
 > If `/plugin install` still fails with `git@github.com: Permission denied (publickey)` on Windows or macOS, the recommended workaround is to configure Git once to rewrite GitHub SSH URLs to HTTPS for subprocess clones:

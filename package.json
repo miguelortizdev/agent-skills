@@ -1,5 +1,5 @@
 {
-  "name": "miguelortizdev-agent-skills",
+  "name": "ai-engineering-standard",
   "version": "1.1.0",
   "description": "Production-grade engineering skills for AI coding agents.",
   "license": "MIT",
@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "bin": {
-    "agent-skills": "scripts/install-agent-standard.js"
+    "ai-engineering-standard": "scripts/install-agent-standard.js"
   },
   "files": [
     "agents/",

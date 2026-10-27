@@ -4,11 +4,11 @@ The standalone `copilot` command-line tool installs this repository as a plugin 
 
 ## Install
 
-**From this repository's marketplace** — register it, then install from it. `miguelortizdev-agent-skills` is the marketplace name this repository declares, not a GitHub-wide registry, and the name only resolves after the `marketplace add`:
+**From this repository's marketplace** — register it, then install from it. `ai-engineering-standard` is the marketplace name this repository declares, not a GitHub-wide registry, and the name only resolves after the `marketplace add`:
 
 ```bash
 copilot plugin marketplace add miguelortizdev/agent-skills
-copilot plugin install agent-skills@miguelortizdev-agent-skills
+copilot plugin install agent-skills@ai-engineering-standard
 ```
 
 **Directly from the repository**, without registering a marketplace:
@@ -29,7 +29,7 @@ copilot --plugin-dir /path/to/agent-skills
 ## Verify
 
 ```bash
-copilot plugin list   # agent-skills@miguelortizdev-agent-skills
+copilot plugin list   # agent-skills@ai-engineering-standard
 copilot skill list    # the plugin's skills, alongside the built-in ones
 ```
 
@@ -58,7 +58,7 @@ Name the skill you want, or describe the task and let the agent route to it:
 
 | Symptom | What to check |
 |---------|---------------|
-| `plugin install` can't resolve `agent-skills@miguelortizdev-agent-skills` | Run `copilot plugin marketplace add miguelortizdev/agent-skills` first — that name only resolves once the marketplace is registered. Or install the repository directly. |
+| `plugin install` can't resolve `agent-skills@ai-engineering-standard` | Run `copilot plugin marketplace add miguelortizdev/agent-skills` first — that name only resolves once the marketplace is registered. Or install the repository directly. |
 | Plugin installed but no skills | `copilot plugin list` to confirm the plugin, then `copilot skill list` (or `/skills list` in session) to see what was discovered. |
 | `/spec`, `/build` and friends are not found | Expected, not a broken install: the root manifest registers no commands. Ask for the skill by name instead. |
 | Skills changed locally but the CLI shows the old copy | Start a fresh session, or run with `--plugin-dir` pointing at your clone. |
