@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/addyosmani/agent-skills/schemas/catalog.schema.json",
+  "$id": "https://github.com/miguelortizdev/agent-skills/schemas/catalog.schema.json",
   "$defs": {
     "matchRule": {
       "type": "object",

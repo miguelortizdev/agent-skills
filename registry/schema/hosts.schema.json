@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/addyosmani/agent-skills/schemas/hosts.schema.json",
+  "$id": "https://github.com/miguelortizdev/agent-skills/schemas/hosts.schema.json",
   "type": "object",
   "required": ["version", "hosts"],
   "additionalProperties": false,

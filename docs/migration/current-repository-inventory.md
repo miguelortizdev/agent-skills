@@ -2,7 +2,8 @@
 
 ## Capture
 
-- Repository: `addyosmani/agent-skills` fork
+- Repository: `miguelortizdev/agent-skills`
+- Historical source: `addyosmani/agent-skills` fork
 - Branch: `refactor/ai-agent-standardization`
 - Capture date: 2026-10-06
 - Working tree at capture: clean

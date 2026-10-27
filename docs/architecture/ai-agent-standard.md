@@ -3,7 +3,7 @@
 ## Purpose
 
 This repository is a reusable AI Engineering platform. It preserves the full
-capability set of `addyosmani/agent-skills` and adds portable metadata,
+capability set of `miguelortizdev/agent-skills` and adds portable metadata,
 profiles, provider-neutral MCP definitions, host adapters, installation, drift
 detection, and upstream synchronization checks.
 

@@ -56,7 +56,7 @@ your-project/
 ```
 
 **Source of truth for the agent:** `.cursor/skills/`.  
-Treat `agent-skills/skills/` (or a cloned [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)) as **upstream** — sync into `.cursor/skills/`, do not edit only upstream and expect Cursor to see it.
+Treat `agent-skills/skills/` (or a cloned [miguelortizdev/agent-skills](https://github.com/miguelortizdev/agent-skills)) as **upstream** — sync into `.cursor/skills/`, do not edit only upstream and expect Cursor to see it.
 
 ---
 
@@ -232,4 +232,4 @@ as native Cursor subagents under `.cursor/agents/` or `~/.cursor/agents/`:
 
 - [getting-started.md](getting-started.md)
 - [../README.md](../README.md) — Cursor quick blurb
-- Upstream: [github.com/addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)
+- Upstream: [github.com/miguelortizdev/agent-skills](https://github.com/miguelortizdev/agent-skills)
