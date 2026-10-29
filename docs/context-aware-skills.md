@@ -34,7 +34,7 @@ context, evidence, selected Skills, host, scope, and target files without
 writing anything:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host codex --profile decameron --project --dry-run
 ```
 
@@ -46,7 +46,7 @@ files remain intact.
 For an overlay, install the matching global foundation first and then run:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host codex --profile decameron --dry-run
 ```
 

@@ -30,7 +30,7 @@ ownership behavior after a sync.
 4. Reinstall or reconcile the global Foundation:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron
 ```
 

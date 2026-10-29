@@ -30,14 +30,14 @@ Current production catalog:
 Install the global `decameron` Foundation once:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron
 ```
 
 Then use a Project Overlay for each repository:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host codex --profile decameron
 ```
 

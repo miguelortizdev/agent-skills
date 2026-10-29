@@ -5,7 +5,7 @@
 Run the installer from the target project's root. Start with a dry-run:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host openchamber \
   --profile decameron \
   --project \
@@ -15,7 +15,7 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 Apply the installation after reviewing the planned files:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host openchamber \
   --profile decameron \
   --project
@@ -53,7 +53,7 @@ current one is removed.
 Remove the current profile with:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host openchamber \
   --profile decameron \
   --project \
@@ -63,7 +63,7 @@ node /path/to/agent-skills/scripts/install-agent-standard.js \
 Then install the replacement profile:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host openchamber \
   --profile default \
   --project

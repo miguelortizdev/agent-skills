@@ -31,14 +31,14 @@ Catálogo productivo actual:
 Instala una vez la Foundation global `decameron`:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron
 ```
 
 Después usa un Project Overlay para cada repositorio:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host codex --profile decameron
 ```
 

@@ -69,7 +69,7 @@ node scripts/validate-profiles.js
 Install a profile with project or global scope:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host codex --profile decameron --project
 ```
 

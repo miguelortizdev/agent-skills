@@ -34,30 +34,30 @@ Estos dry-runs aislados verifican los IDs de Host y el Profile documentados:
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js --global --host claude --profile decameron --dry-run
+npx --yes ai-engineering-standard@latest --global --host claude --profile decameron --dry-run
 ```
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js --global --host codex --profile decameron --dry-run
+npx --yes ai-engineering-standard@latest --global --host codex --profile decameron --dry-run
 ```
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js --global --host cursor --profile decameron --dry-run
+npx --yes ai-engineering-standard@latest --global --host cursor --profile decameron --dry-run
 ```
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js --global --host gemini --profile decameron --dry-run
+npx --yes ai-engineering-standard@latest --global --host gemini --profile decameron --dry-run
 ```
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js --global --host opencode --profile decameron --dry-run
+npx --yes ai-engineering-standard@latest --global --host opencode --profile decameron --dry-run
 ```
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js --global --host openchamber --profile decameron --dry-run
+npx --yes ai-engineering-standard@latest --global --host openchamber --profile decameron --dry-run
 ```

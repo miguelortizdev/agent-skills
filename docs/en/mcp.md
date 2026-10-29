@@ -21,7 +21,7 @@ never place literal secrets in configuration or documentation.
 The adapters use each Host's documented path and format. Run a dry-run first:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host cursor --profile decameron --project --dry-run
 ```
 

@@ -13,7 +13,7 @@ create a second source of truth.
 ## Dry Run First
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host <host> \
   --profile <profile> \
   --project \
@@ -41,7 +41,7 @@ The installer supports three deliberately different strategies:
 Install the shared foundation once for a host and profile:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host codex --profile decameron --global
 ```
 
@@ -54,7 +54,7 @@ Use a self-contained project installation for CI/CD, portable repositories, or
 isolated environments:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host codex --profile decameron --project
 ```
 
@@ -67,7 +67,7 @@ When a compatible global foundation already exists, sync only the project's
 contextual Skills:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host codex --profile decameron
 ```
 
@@ -87,10 +87,10 @@ expanded to a full project installation with `--project`.
 Developers should prefer a global foundation plus a project overlay:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron
 cd my-project
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host codex --profile decameron
 ```
 
@@ -116,7 +116,7 @@ duplicated into an overlay.
 ## Install
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host <host> \
   --profile <profile> \
   --project
@@ -136,7 +136,7 @@ Do not install a second profile for the same host and scope over an existing
 installation. Remove the current host profile first:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host <host> \
   --profile <current-profile> \
   --project \

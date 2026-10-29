@@ -11,7 +11,7 @@ OpenCode discovers project-local assets from these paths:
 Install a selected profile with:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host opencode --profile decameron --project --dry-run
 ```
 

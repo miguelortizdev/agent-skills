@@ -11,6 +11,7 @@ const { afterEach, test } = require('node:test');
 
 const ROOT = path.resolve(__dirname, '..');
 const INSTALLER = path.join(ROOT, 'scripts', 'install-agent-standard.js');
+const NPM_INSTALLER = 'ai-engineering-standard@latest';
 const temporaryRoots = [];
 const HOSTS = ['claude', 'codex', 'cursor', 'gemini', 'opencode', 'openchamber'];
 const DOCUMENTS = [
@@ -105,12 +106,15 @@ function validateCommand(command) {
   if (literalSecret.test(command)) return 'literal secret-like value is not allowed';
   if (/<[^>]+>/.test(command)) return 'unsubstituted placeholder';
   const tokens = commandTokens(command);
-  if (!tokens || tokens[0] !== 'node') return 'only node commands are executable documentation commands';
-  const script = tokens[1];
-  if (!script) return 'missing node script';
-  const resolvedScript = path.isAbsolute(script) ? script : path.resolve(ROOT, script);
-  if (!resolvedScript.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(resolvedScript)) return `missing local script: ${script}`;
-  if (path.basename(resolvedScript) === 'install-agent-standard.js' && !tokens.includes('--dry-run')) {
+  const isNpmInstaller = tokens?.[0] === 'npx' && tokens[1] === '--yes' && tokens[2] === NPM_INSTALLER;
+  if (!tokens || (tokens[0] !== 'node' && !isNpmInstaller)) return 'only node or npx installer commands are executable documentation commands';
+  if (tokens[0] === 'node') {
+    const script = tokens[1];
+    if (!script) return 'missing node script';
+    const resolvedScript = path.isAbsolute(script) ? script : path.resolve(ROOT, script);
+    if (!resolvedScript.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(resolvedScript)) return `missing local script: ${script}`;
+  }
+  if ((tokens[0] === 'node' && path.basename(tokens[1]) === 'install-agent-standard.js' || isNpmInstaller) && !tokens.includes('--dry-run')) {
     return 'installer commands must use --dry-run';
   }
   if (tokens.includes('--this-flag-does-not-exist')) return 'unsupported flag';
@@ -135,7 +139,8 @@ function environment(home) {
 
 function runNodeCommand(command, cwd, env) {
   const tokens = commandTokens(command);
-  return spawnSync(process.execPath, tokens.slice(1), {
+  const args = tokens[0] === 'npx' ? [INSTALLER, ...tokens.slice(3)] : tokens.slice(1);
+  return spawnSync(process.execPath, args, {
     cwd,
     env,
     encoding: 'utf8',
@@ -221,6 +226,7 @@ test('rejects unsupported, dangerous, and write-capable command fixtures', () =>
   assert.match(validateCommand('node scripts/does-not-exist.js --dry-run'), /missing local script/);
   assert.equal(validateCommand('git push origin main'), 'dangerous command is not allowed');
   assert.equal(validateCommand('node scripts/install-agent-standard.js --global --host codex --profile decameron'), 'installer commands must use --dry-run');
+  assert.equal(validateCommand('npx --yes ai-engineering-standard@latest --global --host codex --profile decameron'), 'installer commands must use --dry-run');
   assert.equal(validateCommand('node scripts/example.js --token=literal-secret'), 'literal secret-like value is not allowed');
 });
 

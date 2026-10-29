@@ -27,7 +27,7 @@ Primera vez:
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron --dry-run
 ```
 
@@ -35,7 +35,7 @@ Por proyecto:
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host codex --profile decameron --dry-run
 ```
 
@@ -48,7 +48,7 @@ proyecto relevantes junto con los Skills base requeridos por los Commands.
 La forma general del comando es:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js [refresh|sync] \
+npx --yes ai-engineering-standard@latest [refresh|sync] \
   --host <host> [--profile <profile>] \
   [--global | --project | --overlay] \
   [--dry-run] [--uninstall]
@@ -76,14 +76,14 @@ alcance explícitamente.
 ### Instalación Global
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host <host> --profile <profile>
 ```
 
 Previsualización:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host <host> --profile <profile> --dry-run
 ```
 
@@ -92,7 +92,7 @@ node /ruta/agent-skills/scripts/install-agent-standard.js \
 Ejecuta el comando desde la raíz del proyecto:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --project --host <host> --profile <profile>
 ```
 
@@ -105,14 +105,14 @@ Ejecuta el comando desde la raíz del proyecto después de instalar la Foundatio
 global compatible:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host <host> --profile <profile>
 ```
 
 Equivalente explícito:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --overlay --host <host> --profile <profile>
 ```
 
@@ -125,14 +125,14 @@ Después de actualizar un Command canónico en `commands/*.toml`, refresca los
 Skills derivados sin volver a escribir el Profile:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   refresh --host codex --global
 ```
 
 Para una instalación Project, ejecútalo desde la raíz del proyecto:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   refresh --host codex --project
 ```
 
@@ -143,10 +143,10 @@ Usa `--dry-run` para revisar los cambios antes de escribirlos.
 Si hay una instalación Global y otra Project, elige una:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   refresh --host codex --global
 
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   refresh --host codex --project
 ```
 
@@ -205,7 +205,7 @@ archivo y el bloque de instrucciones.
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --project --host codex --profile decameron --dry-run
 ```
 
@@ -219,7 +219,7 @@ instalación existente con el mismo Host, Profile y alcance:
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --project --host codex --profile decameron --uninstall --dry-run
 ```
 
@@ -230,21 +230,21 @@ que no cambiaron; los archivos del usuario permanecen.
 Desinstalación Global:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host <host> --profile <profile> --uninstall
 ```
 
 Desinstalación Project Full:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --project --host <host> --profile <profile> --uninstall
 ```
 
 Previsualización de cualquier desinstalación:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --project --host <host> --profile <profile> --uninstall --dry-run
 ```
 

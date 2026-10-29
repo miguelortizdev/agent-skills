@@ -198,8 +198,8 @@ Full tree: `skills/using-agent-skills/SKILL.md` in the repo.
 Files under `agent-skills/agents/` (e.g. code reviewer persona) can be installed
 as native Cursor subagents under `.cursor/agents/` or `~/.cursor/agents/`:
 
-- Project install: `node scripts/install-agent-standard.js --host cursor --profile decameron --project`
-- Global install: `node scripts/install-agent-standard.js --host cursor --profile decameron --global`
+- Project install: `npx --yes ai-engineering-standard@latest --host cursor --profile decameron --project`
+- Global install: `npx --yes ai-engineering-standard@latest --host cursor --profile decameron --global`
 - Cursor Commands are installed only in project scope. The official docs currently
   do not document a `~/.cursor/commands/` directory, so the installer does not
   create one.

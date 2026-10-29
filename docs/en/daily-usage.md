@@ -33,7 +33,7 @@ $work start feature dingus --from main
 After updating a canonical Command, refresh the generated adapters with:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   refresh --host codex --global
 ```
 
@@ -47,7 +47,7 @@ invocations. Other Hosts continue using their native Command surfaces.
 Install once, then refresh a project's context from its root when needed:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host <host> --profile <profile>
 ```
 
@@ -55,14 +55,14 @@ Use these variants for common maintenance tasks:
 
 | Task | Command |
 | --- | --- |
-| Preview a Global Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --dry-run` |
-| Preview a Full Project Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --dry-run` |
-| Preview an Overlay | `node /path/to/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --dry-run` |
-| Preview global Codex adapter refresh | `node /path/to/agent-skills/scripts/install-agent-standard.js refresh --host codex --global --dry-run` |
-| Preview project Codex adapter refresh | `node /path/to/agent-skills/scripts/install-agent-standard.js refresh --host codex --project --dry-run` |
-| Uninstall a Global Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --uninstall` |
-| Uninstall a Full Project Foundation | `node /path/to/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --uninstall` |
-| Uninstall an Overlay | `node /path/to/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --uninstall` |
+| Preview a Global Foundation | `npx --yes ai-engineering-standard@latest --global --host <host> --profile <profile> --dry-run` |
+| Preview a Full Project Foundation | `npx --yes ai-engineering-standard@latest --project --host <host> --profile <profile> --dry-run` |
+| Preview an Overlay | `npx --yes ai-engineering-standard@latest sync --host <host> --profile <profile> --dry-run` |
+| Preview global Codex adapter refresh | `npx --yes ai-engineering-standard@latest refresh --host codex --global --dry-run` |
+| Preview project Codex adapter refresh | `npx --yes ai-engineering-standard@latest refresh --host codex --project --dry-run` |
+| Uninstall a Global Foundation | `npx --yes ai-engineering-standard@latest --global --host <host> --profile <profile> --uninstall` |
+| Uninstall a Full Project Foundation | `npx --yes ai-engineering-standard@latest --project --host <host> --profile <profile> --uninstall` |
+| Uninstall an Overlay | `npx --yes ai-engineering-standard@latest sync --host <host> --profile <profile> --uninstall` |
 
 Add `--dry-run` to any install, refresh, or uninstall command to preview it.
 The installer preserves already configured MCP servers and adds only missing

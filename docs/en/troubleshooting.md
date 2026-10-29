@@ -22,7 +22,7 @@
 Start with a dry-run:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host codex --profile decameron --project --dry-run
 ```
 

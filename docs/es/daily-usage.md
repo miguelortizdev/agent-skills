@@ -33,7 +33,7 @@ $work start feature dingus --from main
 Si actualizas un Command canónico, refresca los adapters generados con:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   refresh --host codex --global
 ```
 
@@ -49,7 +49,7 @@ La instalación normal se hace una vez. Para actualizar el contexto de un
 proyecto existente, ejecuta desde su raíz:
 
 ```bash
-node /ruta/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host <host> --profile <profile>
 ```
 
@@ -57,14 +57,14 @@ Usa estas variantes según la tarea:
 
 | Tarea | Comando |
 | --- | --- |
-| Revisar una Foundation global | `node /ruta/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --dry-run` |
-| Revisar una Foundation Project | `node /ruta/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --dry-run` |
-| Revisar un Overlay | `node /ruta/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --dry-run` |
-| Refrescar adapters Codex globales | `node /ruta/agent-skills/scripts/install-agent-standard.js refresh --host codex --global --dry-run` |
-| Refrescar adapters Codex del proyecto | `node /ruta/agent-skills/scripts/install-agent-standard.js refresh --host codex --project --dry-run` |
-| Desinstalar una Foundation global | `node /ruta/agent-skills/scripts/install-agent-standard.js --global --host <host> --profile <profile> --uninstall` |
-| Desinstalar una Foundation Project | `node /ruta/agent-skills/scripts/install-agent-standard.js --project --host <host> --profile <profile> --uninstall` |
-| Desinstalar un Overlay | `node /ruta/agent-skills/scripts/install-agent-standard.js sync --host <host> --profile <profile> --uninstall` |
+| Revisar una Foundation global | `npx --yes ai-engineering-standard@latest --global --host <host> --profile <profile> --dry-run` |
+| Revisar una Foundation Project | `npx --yes ai-engineering-standard@latest --project --host <host> --profile <profile> --dry-run` |
+| Revisar un Overlay | `npx --yes ai-engineering-standard@latest sync --host <host> --profile <profile> --dry-run` |
+| Refrescar adapters Codex globales | `npx --yes ai-engineering-standard@latest refresh --host codex --global --dry-run` |
+| Refrescar adapters Codex del proyecto | `npx --yes ai-engineering-standard@latest refresh --host codex --project --dry-run` |
+| Desinstalar una Foundation global | `npx --yes ai-engineering-standard@latest --global --host <host> --profile <profile> --uninstall` |
+| Desinstalar una Foundation Project | `npx --yes ai-engineering-standard@latest --project --host <host> --profile <profile> --uninstall` |
+| Desinstalar un Overlay | `npx --yes ai-engineering-standard@latest sync --host <host> --profile <profile> --uninstall` |
 
 Agrega `--dry-run` a cualquier instalación, refresh o desinstalación para
 previsualizarla. El instalador conserva MCP ya configurado y agrega solo los

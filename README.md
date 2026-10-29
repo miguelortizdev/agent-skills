@@ -75,19 +75,19 @@ when contextual Skills are registered. The `decameron` profile includes the full
 26-Skill, 10-Command, 4-Agent, and 7-Reference foundation plus corporate MCP.
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron
 
 cd my-project
 
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   sync --host codex --profile decameron
 ```
 
 Use a full project installation when the repository must be self-contained:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --project --host codex --profile decameron
 ```
 
@@ -96,7 +96,7 @@ The three strategies are documented in
 
 <!-- doc-test: executable -->
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron --dry-run
 ```
 

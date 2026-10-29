@@ -30,7 +30,7 @@ después de cada sync.
 4. Reinstala o reconcilia la Foundation global:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --global --host codex --profile decameron
 ```
 

@@ -4,7 +4,7 @@ Cursor discovers long workflows from `.cursor/skills/` and concise policies
 from `.cursor/rules/*.mdc`. Do not paste complete `SKILL.md` files into rules.
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host cursor --profile decameron --project --dry-run
 ```
 

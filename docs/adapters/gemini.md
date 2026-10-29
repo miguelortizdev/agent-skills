@@ -5,7 +5,7 @@ commands from `.gemini/commands/`, and custom subagents from
 `.gemini/agents/`. Global installs use the same directories under `~/.gemini/`.
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host gemini --profile decameron --project --dry-run
 ```
 

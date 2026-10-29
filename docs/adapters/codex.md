@@ -12,7 +12,7 @@ codex plugin add agent-skills@agent-skills
 For a selected project profile:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host codex --profile decameron --project --dry-run
 ```
 

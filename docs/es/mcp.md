@@ -23,7 +23,7 @@ Los adapters usan la ruta y formato documentados de cada Host. Ejecuta primero
 un dry-run:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host cursor --profile decameron --project --dry-run
 ```
 

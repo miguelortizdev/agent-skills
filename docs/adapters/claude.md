@@ -15,7 +15,7 @@ commands/
 For a profile-based project installation:
 
 ```bash
-node /path/to/agent-skills/scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host claude --profile decameron --project --dry-run
 ```
 

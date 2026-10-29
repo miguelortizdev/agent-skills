@@ -19,7 +19,7 @@ provider-neutral.
 Run a dry run before writing configuration:
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host cursor --profile decameron --project --dry-run
 ```
 
@@ -37,7 +37,7 @@ user-managed entries intact, and deletes a configuration file only when the
 installer originally created it and no entries remain.
 
 ```bash
-node scripts/install-agent-standard.js \
+npx --yes ai-engineering-standard@latest \
   --host cursor --profile decameron --project --uninstall --dry-run
 ```
 
