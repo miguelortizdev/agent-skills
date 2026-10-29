@@ -1,6 +1,6 @@
 {
   "name": "ai-engineering-standard",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "Production-grade engineering skills for AI coding agents.",
   "license": "MIT",
   "engines": {
@@ -10,6 +10,7 @@
     "ai-engineering-standard": "scripts/install-agent-standard.js"
   },
   "files": [
+    "adapters/",
     "agents/",
     "commands/",
     "docs/agents.md",
