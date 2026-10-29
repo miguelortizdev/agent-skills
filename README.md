@@ -445,6 +445,7 @@ agent-skills is built and maintained by:
 | <img src="https://github.com/addyosmani.png?size=120" width="60" height="60" alt="Addy Osmani"> | **Addy Osmani** | [@addyosmani](https://github.com/addyosmani) | Creator |
 | <img src="https://github.com/federicobartoli.png?size=120" width="60" height="60" alt="Federico Bartoli"> | **Federico Bartoli** | [@federicobartoli](https://github.com/federicobartoli) | Collaborator |
 | <img src="https://github.com/nucliweb.png?size=120" width="60" height="60" alt="Joan León"> | **Joan León** | [@nucliweb](https://github.com/nucliweb) | Collaborator |
+| <img src="https://avatars.githubusercontent.com/u/18399876?s=64&v=4?size=120" width="60" height="60" alt="Miguel Ortiz"> | **Miguel Ortiz** | [@miguelortizdev](https://github.com/miguelortizdev) | Collaborator |
 
 ---
 
